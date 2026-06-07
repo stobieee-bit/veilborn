@@ -165,6 +165,13 @@ export const CONFIG = {
     safeRadius: 15, // GDD §9.1 no spawns within 15m of fire/base
     respawnDelaySec: 18,
     despawnDist: 140, // far-away packs are recycled
+    maxApexEncounters: 3, // GDD §9.1 apex don't respawn — finite Cradle world events
+  },
+
+  // --- Phase 12 audit: base defense (GDD §6.2) ---
+  defense: {
+    spikeDamagePerSec: 12, // Perimeter Spike contact damage to nearby fauna
+    spikeRadius: 1.8,
   },
 
   // --- Phase 4: tools & scanner ---

@@ -38,6 +38,7 @@ export class SettingsMenu {
     this.toggle("Mute", d.muted, (v) => this.set("muted", v));
     this.toggle("Head bobbing", d.headBobbing, (v) => this.set("headBobbing", v));
     this.toggle("Sprint toggle", d.sprintToggle, (v) => this.set("sprintToggle", v));
+    this.toggle("Compass always on", d.compass, (v) => this.set("compass", v));
     this.toggle("Subtitles", d.subtitles, (v) => this.set("subtitles", v));
     this.toggle("Always show stats (accessibility)", d.alwaysShowStats, (v) => this.set("alwaysShowStats", v));
     this.toggle("High-contrast markers", d.highContrast, (v) => this.set("highContrast", v));

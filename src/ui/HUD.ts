@@ -36,6 +36,7 @@ export interface HudState {
   biome: string;
   veilSense: boolean; // A02 augment: show the Veil Exposure readout
   veilDanger: boolean; // A02 augment: standing in a Veil-dense danger zone
+  compass: string | null; // GDD §11.3 heading readout when "Compass always on"
   minimalHud: boolean; // GDD §13.2 conditional visibility (off = always show)
   tracer: { bearing: number; dist: number; label: string } | null;
   prompt: string | null;
@@ -54,6 +55,7 @@ export class HUD {
   private readonly crosshair: HTMLDivElement;
   private readonly clockEl: HTMLDivElement;
   private readonly clockPhase: HTMLSpanElement;
+  private readonly compassEl: HTMLDivElement;
   private readonly promptEl: HTMLDivElement;
   private readonly toastsEl: HTMLDivElement;
   private readonly hotbarEl: HTMLDivElement;
@@ -131,6 +133,10 @@ export class HUD {
     this.clockEl.appendChild(this.clockPhase);
     root.appendChild(this.clockEl);
 
+    // Compass (top-center heading readout; shown only when enabled in Settings)
+    this.compassEl = el("div", "compass");
+    root.appendChild(this.compassEl);
+
     // Weather chip (under the clock) + threat cue (top-center).
     this.weatherEl = el("div", "weather");
     root.appendChild(this.weatherEl);
@@ -202,6 +208,13 @@ export class HUD {
 
     this.clockEl.firstChild!.textContent = s.clock + " ";
     this.clockPhase.textContent = s.isNight ? "NIGHT" : "DAY";
+
+    if (s.compass) {
+      this.compassEl.textContent = s.compass;
+      this.compassEl.classList.add("show");
+    } else {
+      this.compassEl.classList.remove("show");
+    }
 
     if (s.weather) {
       this.weatherEl.textContent = s.weather;

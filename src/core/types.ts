@@ -122,6 +122,8 @@ export enum ModuleType {
   Fabricator = "FABRICATOR",
   MedicalStation = "MEDICAL_STATION",
   Condenser = "CONDENSER",
+  LightPost = "LIGHT_POST", // GDD §6.2 Defense — base lighting
+  PerimeterSpike = "PERIMETER_SPIKE", // GDD §6.2 Defense — damages nearby fauna
 }
 
 /** How a module snaps to the build grid. */
@@ -131,7 +133,7 @@ export type ModuleSnap = "cell" | "edge" | "roof" | "prop";
 export type ModuleCollision = "none" | "wall" | "door" | "cylinder";
 
 /** What interacting (E) with a placed module does. */
-export type ModuleInteract = "sleep" | "storage" | "fabricator" | "medical" | "condenser";
+export type ModuleInteract = "sleep" | "storage" | "fabricator" | "medical" | "condenser" | "cook";
 
 /** GDD §8.2 augment. The `id` drives its effect in the AugmentSystem. */
 export interface AugmentDef {

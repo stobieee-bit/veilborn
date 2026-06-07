@@ -261,13 +261,26 @@ A recursive GDD-conformance / dead-code / performance audit after Phase 12 lande
 - **Performance:** removed the steady-state per-frame GC pressure and the two broadest scans — the 208-node interaction raycast list and fire-position lookups are cached and rebuilt only on change; movement / sun / fog vector+colour scratch is hoisted out of the loop; the hotbar only touches the DOM when a slot changes (was ~18 `querySelector`s/frame). Combined with the Phase-12 biome-light culling (17 → 8 active lights in the Ashfields).
 - **Dead code removed:** an unused config block plus several orphaned methods/getters.
 
-### Known gaps deliberately left out of scope
+### Discrepancy pass (further GDD conformance)
 
-These GDD items are real but were left out to avoid destabilising the finished build — each is a self-contained subsystem deserving its own pass:
+A follow-up GDD read-through closed these:
+
+- **Apex predators no longer respawn** (GDD §9.1) — the Cradle-Spawn is now a finite world event (cap of 3 per run, tracked via the persisted apex-kill count) instead of respawning indefinitely.
+- **Creature `detectionType` is now behavioural** (GDD §9.3) — Veil-hunters (Drifter, Wraith) see poorly and rely on Veil-draw; the apex's Combined senses make crouching less effective. (Previously every creature used one uniform sight range.)
+- **Compass** (GDD §11.3, §16) — a cardinal + bearing heading readout, shown via the new **"Compass always on"** accessibility toggle (the one §16 option that was missing).
+- **Ashstorm is a cold-snap override** (GDD §4.4) — it replaces the day/night ambient warmth drain instead of stacking on top of it.
+- **Base defense modules** (GDD §6.2 Defense) — **Light Post** (base lighting) and **Perimeter Spike** (chips nearby non-apex fauna) are buildable.
+- **Torch** (GDD §10.1) — a Bioluminite-crafted equippable light source (doubles as a weak bludgeon).
+- **Cooking + ration packs** (GDD §4.3) — interact with a **Fire Pit** to cook raw Spore-caps into the safe, higher-nutrition Cooked Spore-cap; **Ration Packs** are salvageable from crash sites.
+
+### Known gaps still out of scope
+
+Larger self-contained subsystems left for their own pass (to avoid destabilising the finished build):
 
 - **Structure integrity / weather degradation + maintenance** (GDD §6.1, §6.4) — the `integrity` field is tracked and saved but never decayed; needs a decay tick + repair loop + UI.
-- **Full power model & Ion-surge blackouts** (GDD §6.3) — the current node powers consumers within 5 m unconditionally; solar/battery/generator sources, watt budgets, OVERLOADED/OFFLINE status, and the third weather event are not implemented.
-- **Cooking / cultivated crops** (GDD §4.3) and the **Crawler fire-resistance** adaptation branch (GDD §9.4) — both need a damage-type / food-quality system first.
-- Smaller deltas: day:night runs 50:50 (spec 28:22), carry tops out at 40 kg (spec 45), `craft_time` is instant, the Spineback spawns at ground level rather than from the canopy, and the Survey Log lacks dedicated map/recipe/augment tabs (that data is surfaced elsewhere).
+- **Full power model & Ion-surge blackouts** (GDD §6.3) — the node powers consumers within 5 m unconditionally; solar/battery/generator sources, watt budgets, OVERLOADED/OFFLINE status, and the third weather event are not implemented.
+- **Cultivated crops** (GDD §4.3) and the **Crawler fire-resistance** adaptation branch (GDD §9.4) — both need a growth/timer or damage-type system first.
+- Remaining content roster: other §6.2 modules (motion sensor, research benches, foundation/wall/roof variants), ranged weapons + consumable tools (§10.1).
+- Smaller deltas: day:night runs 50:50 (spec 28:22), carry tops out at 40 kg (spec 45), `craft_time` is instant, the Spineback spawns at ground level rather than from the canopy, the Survey Log lacks dedicated map/recipe/augment tabs, and scanner pings aren't persisted to the Survey Log.
 
 Natural next steps beyond the prototype: art/audio assets, the canonical 50-minute day (`CONFIG.time.secondsPerFullDay = 3000`), handcrafted biome geometry in place of the circular greybox regions, draw-call batching for the ~370 individual prop meshes, and multi-slot saves.

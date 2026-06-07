@@ -94,12 +94,19 @@ export class BuildSystem implements BaseProvider {
   private surfaceObjects: THREE.Object3D[] = [];
   // Cached fire-pit positions (warmth / safe-zone / music queries run every frame).
   private readonly fireCache: { x: number; z: number }[] = [];
+  // Cached Perimeter Spike positions (base-defense damage check runs every frame).
+  private readonly spikeCache: { x: number; z: number }[] = [];
   /** Bumped whenever placed modules change, so per-frame callers can cache derived lists. */
   structureVersion = 0;
 
   /** Cached fire-pit positions, rebuilt only on placement change. */
   get firePositions(): { x: number; z: number }[] {
     return this.fireCache;
+  }
+
+  /** Cached Perimeter Spike positions, rebuilt only on placement change. */
+  get spikePositions(): { x: number; z: number }[] {
+    return this.spikeCache;
   }
 
   private readonly ghostValid = new THREE.MeshStandardMaterial({
@@ -432,10 +439,14 @@ export class BuildSystem implements BaseProvider {
     this.foundationTops = [];
     this.surfaceObjects = [this.world.groundMesh];
     this.fireCache.length = 0;
+    this.spikeCache.length = 0;
 
     for (const m of this.placed) {
       if (m.type === ModuleType.FirePit) {
         this.fireCache.push({ x: m.object.position.x, z: m.object.position.z });
+      }
+      if (m.type === ModuleType.PerimeterSpike) {
+        this.spikeCache.push({ x: m.object.position.x, z: m.object.position.z });
       }
       if (m.type === ModuleType.Foundation) {
         this.foundationTops.push({ cx: m.cx, cz: m.cz, topY: m.topY });

@@ -108,6 +108,21 @@ export const RECIPES: Recipe[] = [
     qualityOutput: QualityEnum.Standard,
   },
   {
+    id: "r_torch",
+    name: "Torch",
+    tier: 1,
+    outputItemId: "torch",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "bioluminite", quantity: 1 },
+      { itemId: "fiber_frond", quantity: 2 },
+      { itemId: "ash_sediment", quantity: 1 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Crude,
+  },
+  {
     id: "r_purge_compound",
     name: "Purge Compound",
     tier: 1,

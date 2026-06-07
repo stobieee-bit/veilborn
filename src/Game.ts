@@ -131,6 +131,7 @@ export class Game {
   private lastBiome = "";
   private readonly safeZoneCache: SafeZone[] = [];
   private safeZoneVersion = -1;
+  private readonly spikeKnock = new THREE.Vector3();
   private inEpisode = false;
   private episodeTimer = 0;
   private embraceTimer = 0;
@@ -390,7 +391,9 @@ export class Game {
       }
 
       this.fauna.adaptedApex = this.adaptation.apexAdapted;
+      this.fauna.apexExhausted = this.adaptation.apexKills >= CONFIG.fauna.maxApexEncounters;
       this.fauna.update(dt, this.faunaContext(), this.safeZones());
+      this.updateBaseDefense(dt);
       this.lore.update(dt);
       this.runDiscovery();
       this.updateChatter(dt);
@@ -538,6 +541,15 @@ export class Game {
       if ((p.x - l.position.x) ** 2 + (p.z - l.position.z) ** 2 <= r2) return true;
     }
     return false;
+  }
+
+  /** GDD §11.3 compass — cardinal heading + bearing (clockwise from North) from the camera yaw. */
+  private headingString(): string {
+    const yawDeg = THREE.MathUtils.radToDeg(this.controller.forwardYaw);
+    const bearing = (((360 - (yawDeg % 360)) % 360) + 360) % 360;
+    const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const card = dirs[Math.round(bearing / 45) % 8];
+    return `${card}  ${Math.round(bearing).toString().padStart(3, "0")}°`;
   }
 
   // Reused biome-fog tint anchors (avoid per-frame Color allocations).
@@ -773,9 +785,12 @@ export class Game {
     // night + storm + the cold, wet Veil Sink, reduced by Thermal Skin (A03).
     let drain = 0;
     if (!underground) {
-      if (this.dayNight.isNight) drain += w.nightDrainPerMin;
+      // GDD §4.4 — an Ashstorm is a cold-snap *override* of the ambient day/night
+      // drain (not additive); the Veil Sink's cold/wet still stacks on top.
       if (this.weather.current === WeatherType.Ashstorm) {
-        drain += w.ashstormDrainPerMin * this.weather.intensity;
+        drain = w.ashstormDrainPerMin * this.weather.intensity;
+      } else if (this.dayNight.isNight) {
+        drain = w.nightDrainPerMin;
       }
       drain += CONFIG.veilSink.warmthDrainPerMin * sink;
       drain *= this.augments.warmthDrainMult();
@@ -821,6 +836,26 @@ export class Game {
       zones.push({ x: 0, z: 0, r: CONFIG.fauna.safeRadius }); // the spawn pod
     }
     return this.safeZoneCache;
+  }
+
+  /** GDD §6.2 Perimeter Spike — chip nearby (non-apex) fauna each frame. */
+  private updateBaseDefense(dt: number): void {
+    const spikes = this.buildSystem.spikePositions;
+    if (spikes.length === 0) return;
+    const r2 = CONFIG.defense.spikeRadius ** 2;
+    const dmg = CONFIG.defense.spikeDamagePerSec * dt;
+    for (const c of this.fauna.creatures) {
+      if (!c.alive || c.def.isApex) continue; // apex are not cheesed by spikes
+      for (let i = 0; i < spikes.length; i++) {
+        const dx = c.pos.x - spikes[i].x;
+        const dz = c.pos.z - spikes[i].z;
+        if (dx * dx + dz * dz <= r2) {
+          this.spikeKnock.set(dx, 0, dz).normalize();
+          c.takeDamage(dmg, this.spikeKnock, 0.04);
+          break; // one spike's worth of damage per creature per frame
+        }
+      }
+    }
   }
 
   private faunaContext(): CreatureContext {
@@ -1093,6 +1128,19 @@ export class Game {
     }
   }
 
+  /** GDD §4.3 — cook raw Spore-caps at a fire into the safe, higher-nutrition form. */
+  private cookFood(): void {
+    const raw = this.inventory.count("spore_cap");
+    if (raw <= 0) {
+      this.hud.toast("Nothing to cook — gather Spore-caps first");
+      return;
+    }
+    this.inventory.remove("spore_cap", raw);
+    const added = this.inventory.add("cooked_spore_cap", raw);
+    this.audio.craft();
+    this.hud.toast(`Cooked ${added} Spore-cap${added === 1 ? "" : "s"}`);
+  }
+
   private drinkCondenser(module: PlacedModule): void {
     const c = CONFIG.condenser;
     if (!module.powered) {
@@ -1141,6 +1189,7 @@ export class Game {
       else if (kind === "fabricator") this.openFabricator();
       else if (kind === "medical") this.openMedical(t.module);
       else if (kind === "condenser") this.drinkCondenser(t.module);
+      else if (kind === "cook") this.cookFood();
       return;
     }
 
@@ -1414,6 +1463,7 @@ export class Game {
       biome: BIOME_LABEL[biomeAt(this.controller.position.x, this.controller.position.z)],
       veilSense: this.augments.hasVeilSense(),
       veilDanger: this.augments.hasVeilSense() && this.inVeilDangerZone(),
+      compass: this.settings.data.compass ? this.headingString() : null,
       tracer: this.computeTracer(),
       prompt: t ? `<span class="key">[E]</span> ${t.verb} ${t.label}` : null,
       lookingAtNode: !!t,

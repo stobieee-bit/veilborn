@@ -39,6 +39,8 @@ export class FaunaSystem {
   onBellow: () => void = () => {};
   /** GDD §9.4 — set by Game; apex melee resistance/blocking when adapted. */
   adaptedApex = false;
+  /** GDD §9.1 — set by Game once enough apex have been defeated; stops respawns. */
+  apexExhausted = false;
   onApexMeleeHit: (killed: boolean) => void = () => {};
   /** GDD §16 — spawn-interval multiplier (Infinity = no spawns / Passive). */
   spawnDelayMult = 1;
@@ -183,7 +185,9 @@ export class FaunaSystem {
     let def = SCOUT;
     let count: number = f.packSize;
     if (biome === Biome.Cradle) {
-      // Apex — only one at a time (GDD §9.1 apex do not swarm).
+      // Apex — only one at a time (GDD §9.1 apex do not swarm), and they do not
+      // respawn once enough have been defeated (finite world events).
+      if (this.apexExhausted) return;
       if (this.creatures.some((c) => c.def.id === "C07")) return;
       def = CRADLE_SPAWN;
       count = 1;

@@ -265,6 +265,48 @@ function condenserMesh(): THREE.Object3D {
   return g;
 }
 
+function lightPostMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.1, 2.2, 6),
+    alloy(0x4a4640, 0.7, 0.3),
+  );
+  pole.position.y = 1.1;
+  g.add(pole);
+  const head = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.22, 0),
+    new THREE.MeshStandardMaterial({
+      color: 0x2a2410,
+      emissive: 0xffc070,
+      emissiveIntensity: 1.4,
+      flatShading: true,
+    }),
+  );
+  head.position.y = 2.3;
+  g.add(head);
+  const light = new THREE.PointLight(0xffc070, 2.2, 16, 1.6);
+  light.position.y = 2.3;
+  g.add(light);
+  return g;
+}
+
+function perimeterSpikeMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.5, 0.6, 0.2, 8),
+    alloy(0x4a3a2a, 1, 0),
+  );
+  base.position.y = 0.1;
+  g.add(base);
+  const spikeMat = alloy(0x8a8170, 0.6, 0.3);
+  for (const [sx, sz] of [[0, 0], [0.28, 0.18], [-0.28, 0.18], [0.2, -0.26], [-0.2, -0.26]]) {
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 1.0, 5), spikeMat);
+    spike.position.set(sx, 0.6, sz);
+    g.add(spike);
+  }
+  return g;
+}
+
 export const MODULES: ModuleDef[] = [
   {
     type: ModuleType.Foundation,
@@ -303,6 +345,7 @@ export const MODULES: ModuleDef[] = [
     name: "Fire Pit",
     snap: "prop",
     collision: "cylinder",
+    interact: "cook", // GDD §4.3 — cook raw food at the fire
     cost: [{ itemId: "ash_sediment", quantity: 3 }, { itemId: "fiber_frond", quantity: 2 }],
     create: firePitMesh,
   },
@@ -371,6 +414,29 @@ export const MODULES: ModuleDef[] = [
       { itemId: "ship_alloy_scrap", quantity: 1 },
     ],
     create: condenserMesh,
+  },
+  {
+    type: ModuleType.LightPost,
+    name: "Light Post",
+    snap: "prop",
+    collision: "cylinder",
+    cost: [
+      { itemId: "ash_sediment", quantity: 3 },
+      { itemId: "fiber_frond", quantity: 1 },
+      { itemId: "bioluminite", quantity: 1 },
+    ],
+    create: lightPostMesh,
+  },
+  {
+    type: ModuleType.PerimeterSpike,
+    name: "Perimeter Spike",
+    snap: "prop",
+    collision: "cylinder",
+    cost: [
+      { itemId: "ash_sediment", quantity: 2 },
+      { itemId: "spine_crystal_shard", quantity: 1 },
+    ],
+    create: perimeterSpikeMesh,
   },
 ];
 

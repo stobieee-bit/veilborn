@@ -198,15 +198,26 @@ export class PlayerController {
   private readonly rightScratch = new THREE.Vector3();
   private readonly wishScratch = new THREE.Vector3();
   private readonly grappleDir = new THREE.Vector3();
+  private torchLight: THREE.PointLight | null = null;
 
   setEquippedTool(itemId: string | null): void {
     if (this.toolMesh) {
       this.camera.remove(this.toolMesh);
       this.toolMesh = null;
     }
+    if (this.torchLight) {
+      this.camera.remove(this.torchLight);
+      this.torchLight = null;
+    }
     if (itemId === "stone_blade") this.toolMesh = makeStoneBladeViewmodel();
     else if (itemId === "spike_lance") this.toolMesh = makeSpikeLanceViewmodel();
     else if (itemId === "scanner") this.toolMesh = makeScannerViewmodel();
+    else if (itemId === "torch") {
+      this.toolMesh = makeTorchViewmodel();
+      this.torchLight = new THREE.PointLight(0xffa64d, 2.4, 16, 1.5); // GDD §10.1 light source
+      this.torchLight.position.set(0.3, -0.05, -0.5);
+      this.camera.add(this.torchLight);
+    }
     if (this.toolMesh) this.camera.add(this.toolMesh);
   }
 
@@ -315,6 +326,30 @@ function makeSpikeLanceViewmodel(): THREE.Group {
   point.rotation.z = -Math.PI / 2.2;
   point.position.set(0.27, 0.1, 0);
   group.add(point);
+  group.position.set(0.34, -0.32, -0.6);
+  group.rotation.set(0.1, -0.3, 0);
+  return group;
+}
+
+function makeTorchViewmodel(): THREE.Group {
+  const group = new THREE.Group();
+  const haft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.022, 0.026, 0.32, 6),
+    new THREE.MeshStandardMaterial({ color: 0x5a4a32, roughness: 1 }),
+  );
+  haft.rotation.z = Math.PI / 2.3;
+  group.add(haft);
+  const flame = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.07, 0),
+    new THREE.MeshStandardMaterial({
+      color: 0x3a1a08,
+      emissive: 0xffa64d,
+      emissiveIntensity: 1.8,
+      flatShading: true,
+    }),
+  );
+  flame.position.set(0.18, 0.06, 0);
+  group.add(flame);
   group.position.set(0.34, -0.32, -0.6);
   group.rotation.set(0.1, -0.3, 0);
   return group;

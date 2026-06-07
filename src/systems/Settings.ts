@@ -11,6 +11,7 @@ export interface SettingsData {
   subtitles: boolean;
   alwaysShowStats: boolean; // accessibility: disable the GDD §13.2 hide rules
   highContrast: boolean;
+  compass: boolean; // GDD §16 "Compass always on" (a heading readout on the HUD)
   volume: number; // 0 – 1
   muted: boolean;
 }
@@ -25,6 +26,7 @@ const DEFAULTS: SettingsData = {
   subtitles: true,
   alwaysShowStats: false,
   highContrast: false,
+  compass: false,
   volume: 0.7,
   muted: false,
 };

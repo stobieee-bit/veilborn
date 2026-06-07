@@ -162,6 +162,27 @@ export const ITEMS: Record<string, ItemDef> = {
     quality: QualityEnum.Standard,
     use: { kind: "eat", hunger: 30 },
   },
+  cooked_spore_cap: {
+    id: "cooked_spore_cap",
+    name: "Cooked Spore-cap",
+    description: "Roasted over a fire — safe to eat and more filling than raw. (GDD §4.3)",
+    weight: 0.2,
+    stackSize: 20,
+    category: ItemCategory.Consumable,
+    materialCategory: MaterialCategory.Organic,
+    quality: QualityEnum.Standard,
+    use: { kind: "eat", hunger: 45 },
+  },
+  ration_pack: {
+    id: "ration_pack",
+    name: "Ration Pack",
+    description: "A sealed CALDERA field ration. High nutrition, no prep. (GDD §4.3)",
+    weight: 0.4,
+    stackSize: 10,
+    category: ItemCategory.Consumable,
+    quality: QualityEnum.Refined,
+    use: { kind: "eat", hunger: 60 },
+  },
   fiber_wrap: {
     id: "fiber_wrap",
     name: "Fiber Wrap",
@@ -254,6 +275,19 @@ export const ITEMS: Record<string, ItemDef> = {
     category: ItemCategory.Tool,
     quality: QualityEnum.Refined,
     use: { kind: "equip" },
+  },
+  torch: {
+    id: "torch",
+    name: "Torch",
+    description:
+      "A bioluminite brand on a frond haft. Equip to light your way; a weak bludgeon in a pinch. (GDD §10.1)",
+    weight: 0.6,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Crude,
+    use: { kind: "equip" },
+    maxDurability: 70,
+    toolDamage: 8,
   },
 
   // --- Placeables ---

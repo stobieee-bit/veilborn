@@ -21,6 +21,7 @@ export const CRASH_SITES: CrashSite[] = [
     loot: [
       { itemId: "ship_alloy_scrap", qty: 4 },
       { itemId: "ship_component", qty: 1 },
+      { itemId: "ration_pack", qty: 2 },
     ],
     augmentItemId: "aug_reflex_filter", // A06
   },
@@ -32,6 +33,7 @@ export const CRASH_SITES: CrashSite[] = [
     loot: [
       { itemId: "ship_alloy_scrap", qty: 5 },
       { itemId: "ship_component", qty: 1 },
+      { itemId: "ration_pack", qty: 3 },
     ],
     augmentItemId: "aug_bone_lace", // A08
   },
@@ -43,6 +45,7 @@ export const CRASH_SITES: CrashSite[] = [
     loot: [
       { itemId: "ship_alloy_scrap", qty: 4 },
       { itemId: "ship_component", qty: 1 },
+      { itemId: "ration_pack", qty: 2 },
     ],
     augmentItemId: "aug_thermal_skin", // A03 (Warrens in GDD; placed here for Phase 6)
   },

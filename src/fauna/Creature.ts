@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CONFIG } from "../config";
-import { BehaviorState, type CreatureDef } from "../core/types";
+import { BehaviorState, DetectionType, type CreatureDef } from "../core/types";
 import type { World } from "../world/World";
 
 export interface CreatureContext {
@@ -118,7 +118,20 @@ export class Creature {
       ctx.playerPos.x - this.pos.x,
       ctx.playerPos.z - this.pos.z,
     );
-    const detect = this.def.detectionRange * (ctx.playerCrouching ? 0.5 : 1);
+    // GDD §9.3 — detection modality shapes the effective sight range.
+    let detect = this.def.detectionRange;
+    switch (this.def.detectionType) {
+      case DetectionType.Veil:
+        // Veil-hunters see poorly; they sense the Veil instead (veilDrawn below).
+        detect *= ctx.playerCrouching ? 0.4 : 0.6;
+        break;
+      case DetectionType.Combined:
+        // Apex: keen senses — crouching helps less than against pure sight.
+        detect *= ctx.playerCrouching ? 0.6 : 1;
+        break;
+      default: // Sight / Sound
+        detect *= ctx.playerCrouching ? 0.5 : 1;
+    }
     const veilDrawn =
       this.def.veilDrawThreshold !== undefined && ctx.playerVeil > this.def.veilDrawThreshold;
 
