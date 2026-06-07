@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+.vite/
+
+# Claude Code personal/local settings (launch.json is shared)
+.claude/settings.local.json

@@ -1,0 +1,277 @@
+import {
+  ItemCategory,
+  MaterialCategory,
+  QualityEnum,
+  type ItemDef,
+} from "../core/types";
+
+function augItem(id: string, name: string, description: string): ItemDef {
+  return {
+    id,
+    name,
+    description,
+    weight: 0.4,
+    stackSize: 1,
+    category: ItemCategory.Augment,
+    quality: QualityEnum.Refined,
+  };
+}
+
+/**
+ * Item registry. IDs prefixed with the GDD material code (M001 etc.) where one
+ * exists; prototype-only items are noted.
+ */
+export const ITEMS: Record<string, ItemDef> = {
+  // --- Raw materials (gatherable) ---
+  ash_sediment: {
+    id: "ash_sediment",
+    name: "Ash-sediment",
+    description:
+      "Compacted grey mineral grit from the Ashfields. Base crafting material. (GDD M001)",
+    weight: 0.5,
+    stackSize: 50,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Mineral,
+    quality: QualityEnum.Standard,
+  },
+  fiber_frond: {
+    id: "fiber_frond",
+    name: "Fiber-frond",
+    description:
+      "Tough leafy fronds from low Ashfields scrub. Cordage and wrap material. (Phase 1 forage)",
+    weight: 0.1,
+    stackSize: 50,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Organic,
+    quality: QualityEnum.Standard,
+  },
+  vaelun_hide: {
+    id: "vaelun_hide",
+    name: "Vaelun Hide",
+    description:
+      "Tough, faintly luminescent hide cut from native fauna. Armor material. (GDD M003)",
+    weight: 0.6,
+    stackSize: 30,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Organic,
+    quality: QualityEnum.Standard,
+  },
+  spine_crystal_shard: {
+    id: "spine_crystal_shard",
+    name: "Spine-crystal Shard",
+    description: "A sharp, conductive crystal sliver. Electronics material. (GDD M002)",
+    weight: 0.3,
+    stackSize: 40,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Mineral,
+    quality: QualityEnum.Standard,
+  },
+  veil_resin: {
+    id: "veil_resin",
+    name: "Veil-resin",
+    description: "Sticky semi-organic compound. Adhesive; Purge Compound base. (GDD M004)",
+    weight: 0.2,
+    stackSize: 40,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.VeilCompound,
+    quality: QualityEnum.Standard,
+  },
+  ship_alloy_scrap: {
+    id: "ship_alloy_scrap",
+    name: "Ship Alloy Scrap",
+    description: "Salvaged CALDERA hull plating. High-tier crafting material. (GDD M005)",
+    weight: 0.9,
+    stackSize: 30,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Synthetic,
+    quality: QualityEnum.Refined,
+  },
+  bioluminite: {
+    id: "bioluminite",
+    name: "Bioluminite",
+    description: "A glowing Veil-matter nodule. Light-source material. Gather at night. (GDD M006)",
+    weight: 0.2,
+    stackSize: 40,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.VeilCompound,
+    quality: QualityEnum.Standard,
+  },
+  condensate_crystal: {
+    id: "condensate_crystal",
+    name: "Condensate Crystal",
+    description: "A crystal weeping clean water. Drink to rehydrate. (GDD M008)",
+    weight: 0.3,
+    stackSize: 20,
+    category: ItemCategory.Consumable,
+    materialCategory: MaterialCategory.Mineral,
+    quality: QualityEnum.Standard,
+    use: { kind: "drink", hydration: 22 },
+  },
+  alloy_frame: {
+    id: "alloy_frame",
+    name: "Alloy Frame",
+    description: "A fabricated structural frame. Component for Tier-1 gear. (GDD Tier 1)",
+    weight: 0.8,
+    stackSize: 20,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Synthetic,
+    quality: QualityEnum.Refined,
+  },
+  ship_component: {
+    id: "ship_component",
+    name: "Ship Component",
+    description:
+      "An intact CALDERA subsystem from a crash site. Unlocks Tier-2 fabrication. (GDD §5.2)",
+    weight: 1.4,
+    stackSize: 5,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Synthetic,
+    quality: QualityEnum.Refined,
+  },
+  energy_cell: {
+    id: "energy_cell",
+    name: "Energy Cell",
+    description: "A charged Veil-matter cell. Powers advanced gear. (GDD Tier 2)",
+    weight: 0.5,
+    stackSize: 10,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Synthetic,
+    quality: QualityEnum.Refined,
+  },
+
+  // --- Augments (installed at a Medical Station) ---
+  aug_iron_gut: augItem("aug_iron_gut", "Iron Gut Augment", "Gut-flora implant — raw food never sickens you."),
+  aug_veil_sense: augItem("aug_veil_sense", "Veil-Sense Augment", "Optic implant that reads Veil-matter saturation."),
+  aug_thermal_skin: augItem("aug_thermal_skin", "Thermal Skin Augment", "Subdermal weave that retains body heat."),
+  aug_carrier_frame: augItem("aug_carrier_frame", "Carrier Frame Augment", "Exoskeletal frame for heavier loads."),
+  aug_deep_lung: augItem("aug_deep_lung", "Deep Lung Augment", "Auxiliary oxygen bladder for the deep places."),
+  aug_reflex_filter: augItem("aug_reflex_filter", "Reflex Filter Augment", "Neural filter that speeds recovery."),
+  aug_veil_null: augItem("aug_veil_null", "Veil-null Augment", "Dampening lattice that resists the Veil."),
+  aug_bone_lace: augItem("aug_bone_lace", "Bone Lace Augment", "Lattice-reinforced skeleton."),
+
+  // --- Consumables ---
+  spore_cap: {
+    id: "spore_cap",
+    name: "Spore-cap",
+    description:
+      "Edible alien fungus. Restores hunger. Safe raw in small amounts. (GDD M007)",
+    weight: 0.2,
+    stackSize: 20,
+    category: ItemCategory.Consumable,
+    materialCategory: MaterialCategory.Organic,
+    quality: QualityEnum.Standard,
+    use: { kind: "eat", hunger: 30 },
+  },
+  fiber_wrap: {
+    id: "fiber_wrap",
+    name: "Fiber Wrap",
+    description: "A crude binding wrap. Stems bleeding and restores health.",
+    weight: 0.2,
+    stackSize: 10,
+    category: ItemCategory.Consumable,
+    quality: QualityEnum.Crude,
+    use: { kind: "heal", health: 25 },
+  },
+  purge_compound: {
+    id: "purge_compound",
+    name: "Purge Compound",
+    description: "A Veil-resin distillate. Flushes Veil-matter from your system. (GDD §4.1)",
+    weight: 0.3,
+    stackSize: 10,
+    category: ItemCategory.Consumable,
+    quality: QualityEnum.Refined,
+    use: { kind: "purge", veil: 45 },
+  },
+
+  // --- Tools ---
+  stone_blade: {
+    id: "stone_blade",
+    name: "Stone Blade",
+    description:
+      "A knapped ash-stone edge lashed to a frond grip. Your first tool. (GDD Tier 0)",
+    weight: 1.2,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Crude,
+    use: { kind: "equip" },
+    maxDurability: 60,
+    toolDamage: 22,
+  },
+  spike_lance: {
+    id: "spike_lance",
+    name: "Spike Lance",
+    description:
+      "A spine-crystal point on an alloy haft. A proper weapon. (GDD Tier 1 primitive weapon)",
+    weight: 2.0,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Standard,
+    use: { kind: "equip" },
+    maxDurability: 110,
+    toolDamage: 38,
+  },
+  scanner: {
+    id: "scanner",
+    name: "Scanner",
+    description:
+      "Handheld survey device. Equip and use to ping nearby material deposits. (GDD §11.2, Tier 1)",
+    weight: 0.8,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Standard,
+    use: { kind: "equip" },
+    maxDurability: 50,
+  },
+  topographic_mapper: {
+    id: "topographic_mapper",
+    name: "Topographic Mapper",
+    description:
+      "While carried, charts terrain within 100m as you explore (corner minimap). (GDD §11.3, Tier 1)",
+    weight: 0.6,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Standard,
+    use: { kind: "equip" },
+  },
+  grapple_hook: {
+    id: "grapple_hook",
+    name: "Grapple Hook",
+    description:
+      "Equip and fire to zip toward what you're aiming at. Vertical traversal. (GDD §11.4, Tier 2)",
+    weight: 1.5,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Refined,
+    use: { kind: "equip" },
+  },
+  signal_tracer: {
+    id: "signal_tracer",
+    name: "Signal Tracer",
+    description:
+      "While carried, points toward the nearest un-recovered black-box signal. (GDD §11.3)",
+    weight: 0.6,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Refined,
+    use: { kind: "equip" },
+  },
+
+  // --- Placeables ---
+  shelter_kit: {
+    id: "shelter_kit",
+    name: "Shelter Kit",
+    description:
+      "A bundle of stone and frond for a quick lean-to. Deploys a basic shelter. (GDD Tier 0; full base building arrives in Phase 2)",
+    weight: 4.0,
+    stackSize: 3,
+    category: ItemCategory.Placeable,
+    quality: QualityEnum.Crude,
+    use: { kind: "place", prop: "shelter" },
+  },
+};
+
+export function getItem(id: string): ItemDef {
+  const item = ITEMS[id];
+  if (!item) throw new Error(`Unknown item id: ${id}`);
+  return item;
+}
