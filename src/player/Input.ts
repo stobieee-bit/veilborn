@@ -19,6 +19,18 @@ export class Input {
       if (e.code === "Tab" || (this.locked && e.code === "Space")) {
         e.preventDefault();
       }
+      // During an active (pointer-locked) run, suppress the page-level shortcuts
+      // the browser still lets a page cancel, so a stray keypress doesn't reload,
+      // print, or save-page mid-game. Browser-reserved combos (Ctrl+W/T/N) can't
+      // be blocked by any page — the Game's beforeunload guard prompts on those.
+      if (
+        this.locked &&
+        (e.code === "F5" ||
+          ((e.ctrlKey || e.metaKey) &&
+            (e.code === "KeyR" || e.code === "KeyS" || e.code === "KeyP" || e.code === "KeyW")))
+      ) {
+        e.preventDefault();
+      }
     });
     window.addEventListener("keyup", (e) => this.down.delete(e.code));
     window.addEventListener("blur", () => this.down.clear());

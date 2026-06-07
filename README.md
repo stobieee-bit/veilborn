@@ -38,6 +38,7 @@ Click the title screen to lock the pointer and play. Press **Esc** to release th
 | Use hotbar slot | `1` – `6` |
 | Inventory / Field Crafting | `Tab` |
 | Survey Log (journal) | `J` |
+| How to Play (help) | `H` |
 | Settings / Accessibility | `O` |
 | Build mode (toggle) | `B` |
 | — cycle module | Mouse wheel / `Q` `E` |
@@ -284,6 +285,14 @@ A second discrepancy pass added the one genuinely missing *layer* plus several s
 - **Rest reduces Veil Exposure** (GDD §4.1) — sleeping at the pod now lowers exposure (−30) alongside restoring stamina/health.
 - **Veil-rain is drinkable** (GDD §4.3) — with no interaction target while Veil-rain falls, press `E` to drink: hydration up, Veil Exposure +5 (prompted on the HUD).
 - **Recipes can be taught by lore** (GDD §5.1) — recovering certain fragments learns a recipe outright (the non-experimentation path): e.g. the Ration Manifest teaches the Hide Vest, Yena's Inventory teaches the Composite Vest.
+
+### Onboarding & accidental-exit guard
+
+Now that the demo is public, first-time players get a hand:
+
+- **How-to-Play overlay** — controls + the core loop + goal, auto-shown once on a new player's first New Game and reopenable anytime with `H` (or the title-screen "How to Play" button).
+- **Getting-started checklist** — a small first-run HUD guide that ticks off as you gather, craft, eat/drink, and build; shows once, then never again (persisted).
+- **Accidental-exit guard** — during an active run the page prompts before a reload/close (the only reliable catch for browser-reserved keys like Ctrl+W), and the page-cancellable shortcuts (F5, Ctrl+R/S/P) are suppressed while the pointer is locked.
 
 ### Known gaps still out of scope
 

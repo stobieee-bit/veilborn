@@ -54,6 +54,8 @@ import { AugmentUI } from "./ui/AugmentUI";
 import { SurveyLog } from "./ui/SurveyLog";
 import { EndingScreen } from "./ui/EndingScreen";
 import { SettingsMenu } from "./ui/SettingsMenu";
+import { HelpScreen } from "./ui/HelpScreen";
+import { Onboarding } from "./systems/Onboarding";
 
 type GameState = "intro" | "playing" | "dead" | "ending";
 
@@ -118,6 +120,8 @@ export class Game {
   private readonly surveyLog: SurveyLog;
   private readonly endingScreen: EndingScreen;
   private readonly settingsMenu: SettingsMenu;
+  private readonly helpScreen: HelpScreen;
+  private readonly onboarding = new Onboarding();
 
   private state: GameState = "intro";
   private selectedSlot = -1;
@@ -174,6 +178,8 @@ export class Game {
     this.endingScreen = new EndingScreen(uiRoot);
     this.settingsMenu = new SettingsMenu(uiRoot, this.settings);
     this.settingsMenu.onChange = () => this.applySettings();
+    this.helpScreen = new HelpScreen(uiRoot);
+    this.helpScreen.onClose = () => this.closeHelp();
     this.fauna.onBellow = () => {
       this.hud.toast("A Bellower's call rolls across the land…");
       this.audio.bellow();
@@ -209,6 +215,7 @@ export class Game {
     this.hud.introNewBtn.addEventListener("click", () => { this.audio.ensureStarted(); this.beginRun(); });
     this.hud.introContinueBtn.addEventListener("click", () => { this.audio.ensureStarted(); this.continueGame(); });
     this.hud.introSettingsBtn.addEventListener("click", () => { this.audio.ensureStarted(); this.openSettings(); });
+    this.hud.introHelpBtn.addEventListener("click", () => { this.audio.ensureStarted(); this.openHelp(); });
     this.hud.deathEl.addEventListener("click", () => this.respawn());
     const resume = () => {
       this.audio.ensureStarted();
@@ -218,6 +225,15 @@ export class Game {
     // The pause overlay sits over the canvas with pointer-events:auto, so it eats
     // the click — it needs its own resume handler (the canvas one never fires).
     this.hud.pauseEl.addEventListener("click", resume);
+    // Guard against an accidental reload/close/navigate ending a run silently —
+    // the only reliable catch for browser-reserved keys (Ctrl+W/R, F5). Only
+    // prompts mid-run, never on the title or ending screens.
+    window.addEventListener("beforeunload", (e) => {
+      if (this.state === "playing" || this.state === "dead") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
   }
 
   private beginRun(): void {
@@ -257,7 +273,14 @@ export class Game {
     this.inventory.add("fiber_frond", 3);
     this.equipment.refresh(this.inventory);
     this.hud.showIntro(false);
-    this.input.requestLock();
+    // First-time player: show the How-to-Play overlay and start the getting-started
+    // guide; play begins when they close help. Returning players lock in directly.
+    if (!this.onboarding.seenBefore) {
+      this.onboarding.begin();
+      this.openHelp();
+    } else {
+      this.input.requestLock();
+    }
     this.hud.toast("Salvaged from the pod: 4 Ash-sediment, 3 Fiber-frond");
   }
 
@@ -349,9 +372,11 @@ export class Game {
       this.state === "playing" && this.input.locked && !uiOpen && !this.inEpisode;
     const pos = this.controller.position;
 
-    // Settings can be opened from the title screen (state "intro"), so its
-    // keyboard close (Esc/O/Tab) must be handled outside the "playing" gate too.
-    if (this.state === "playing" || this.settingsMenu.visible) this.handleUIToggles();
+    // Settings and Help can be opened from the title screen (state "intro"), so
+    // their keyboard close must be handled outside the "playing" gate too.
+    if (this.state === "playing" || this.settingsMenu.visible || this.helpScreen.visible) {
+      this.handleUIToggles();
+    }
     this.updateVeilEpisode(dt);
 
     if (simulating) {
@@ -461,6 +486,11 @@ export class Game {
       if (this.input.wasPressed("Tab") || this.input.wasPressed("KeyO") || esc) this.closeSettings();
       return;
     }
+    if (this.helpScreen.visible) {
+      if (this.input.wasPressed("Tab") || this.input.wasPressed("KeyH") || esc) this.closeHelp();
+      return;
+    }
+    if (this.input.wasPressed("KeyH")) this.openHelp();
     if (this.input.wasPressed("KeyO")) this.openSettings();
     if (this.input.wasPressed("KeyJ")) this.toggleSurveyLog();
     if (this.input.wasPressed("KeyB") && !this.menu.visible) this.toggleBuild();
@@ -507,7 +537,8 @@ export class Game {
       this.loreReader.visible ||
       this.augmentUI.visible ||
       this.surveyLog.visible ||
-      this.settingsMenu.visible
+      this.settingsMenu.visible ||
+      this.helpScreen.visible
     );
   }
 
@@ -530,6 +561,29 @@ export class Game {
   private closeSettings(): void {
     this.settingsMenu.hide();
     if (this.state === "playing") this.input.requestLock();
+  }
+
+  private openHelp(): void {
+    this.audio.ui();
+    this.helpScreen.open();
+    if (this.state === "playing") this.input.exitLock();
+  }
+  private closeHelp(): void {
+    this.helpScreen.hide();
+    // Closing the first-run auto-shown help marks onboarding seen (no re-nag).
+    if (this.onboarding.active) this.onboarding.markSeen();
+    if (this.state === "playing") this.input.requestLock();
+  }
+
+  /** Tick off a getting-started step; celebrate when the basics are all learned. */
+  private tickOnboarding(id: string): void {
+    if (!this.onboarding.complete(id)) return;
+    this.audio.ui();
+    if (this.onboarding.allDone) {
+      this.onboarding.active = false;
+      this.onboarding.markSeen();
+      this.hud.toast("Survival basics learned — good luck on Vaelun.");
+    }
   }
 
   private ownsMapper(): boolean {
@@ -1166,6 +1220,7 @@ export class Game {
     this.hud.toast(
       `Drank Veil-rain — hydration +${CONFIG.veil.rainDrinkHydration}, Veil +${CONFIG.veil.rainDrinkVeil}`,
     );
+    this.tickOnboarding("sustain");
   }
 
   /** GDD §4.3 — cook raw Spore-caps at a fire into the safe, higher-nutrition form. */
@@ -1194,6 +1249,7 @@ export class Game {
     module.water = (module.water ?? 0) - c.drinkUnits;
     this.stats.drink(c.drinkHydration);
     this.hud.toast(`Drank condensate — hydration +${c.drinkHydration}`);
+    this.tickOnboarding("sustain");
   }
 
   private handleBuildInputs(): void {
@@ -1212,6 +1268,7 @@ export class Game {
             : `Built ${res.def.name}`;
         this.hud.toast(msg);
         this.autoSave();
+        this.tickOnboarding("build");
       } else {
         this.hud.toast(res.reason);
       }
@@ -1256,6 +1313,7 @@ export class Game {
     if (node.kind === "water") {
       this.stats.drink(node.drinkAmount);
       this.hud.toast(`Drank from ${node.label} — hydration +${node.drinkAmount}`);
+      this.tickOnboarding("sustain");
       return;
     }
     if (node.kind === "bio" && !this.dayNight.isNight) {
@@ -1270,6 +1328,7 @@ export class Game {
     }
     this.hud.toast(`+${added} ${node.label}${added < qty ? " (carry full)" : ""}`);
     this.audio.gather();
+    this.tickOnboarding("gather");
     // Harvesting wears a held harvesting/weapon tool (GDD §10.3).
     if (this.equippedItemId && getItem(this.equippedItemId).toolDamage) {
       this.wearTool(CONFIG.tools.gatherWearPerHit);
@@ -1321,6 +1380,7 @@ export class Game {
           this.stats.heal(use.health);
           this.hud.toast(`Used ${item.name} — health +${use.health}`);
         }
+        if (use?.kind === "eat" || use?.kind === "drink") this.tickOnboarding("sustain");
         this.inventory.remove(itemId, 1);
         break;
       }
@@ -1414,6 +1474,7 @@ export class Game {
       this.audio.craft();
       this.equipment.refresh(this.inventory); // auto-equip if we just crafted better armor
       this.hud.toast(`Crafted ${recipe.name}`);
+      this.tickOnboarding("craft");
     } else if (result.reason === "no_space") this.hud.toast("Too heavy to craft that");
     else this.hud.toast("Missing materials");
     this.runDiscovery();
@@ -1511,6 +1572,9 @@ export class Game {
       veilDanger: this.augments.hasVeilSense() && this.inVeilDangerZone(),
       compass: this.settings.data.compass ? this.headingString() : null,
       armorReduction: this.equipment.reduction(),
+      onboarding: this.onboarding.active
+        ? this.onboarding.steps.map((s) => ({ label: s.label, done: s.done }))
+        : null,
       tracer: this.computeTracer(),
       prompt: t
         ? `<span class="key">[E]</span> ${t.verb} ${t.label}`

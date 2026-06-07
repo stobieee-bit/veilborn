@@ -38,6 +38,7 @@ export interface HudState {
   veilDanger: boolean; // A02 augment: standing in a Veil-dense danger zone
   compass: string | null; // GDD §11.3 heading readout when "Compass always on"
   armorReduction: number; // GDD §7.1 worn-armor damage reduction (0 = none)
+  onboarding: { label: string; done: boolean }[] | null; // first-run getting-started steps
   minimalHud: boolean; // GDD §13.2 conditional visibility (off = always show)
   tracer: { bearing: number; dist: number; label: string } | null;
   prompt: string | null;
@@ -58,6 +59,8 @@ export class HUD {
   private readonly clockPhase: HTMLSpanElement;
   private readonly compassEl: HTMLDivElement;
   private readonly armorEl: HTMLDivElement;
+  private readonly onboardEl: HTMLDivElement;
+  private onboardSig = "";
   private readonly promptEl: HTMLDivElement;
   private readonly toastsEl: HTMLDivElement;
   private readonly hotbarEl: HTMLDivElement;
@@ -94,6 +97,7 @@ export class HUD {
   readonly introNewBtn: HTMLButtonElement;
   readonly introContinueBtn: HTMLButtonElement;
   readonly introSettingsBtn: HTMLButtonElement;
+  readonly introHelpBtn: HTMLButtonElement;
 
   constructor(root: HTMLElement) {
     this.crosshair = el("div", "crosshair");
@@ -183,6 +187,10 @@ export class HUD {
     this.armorEl = el("div", "armor-readout");
     root.appendChild(this.armorEl);
 
+    // First-run "Getting Started" checklist (right side, only during onboarding)
+    this.onboardEl = el("div", "onboarding");
+    root.appendChild(this.onboardEl);
+
     this.saveIndicator = el("div", "save-indicator");
     this.saveIndicator.textContent = "✓ Saved";
     root.appendChild(this.saveIndicator);
@@ -192,6 +200,7 @@ export class HUD {
     this.introContinueBtn = this.introEl.querySelector(".btn-continue")!;
     this.introNewBtn = this.introEl.querySelector(".btn-new")!;
     this.introSettingsBtn = this.introEl.querySelector(".btn-settings")!;
+    this.introHelpBtn = this.introEl.querySelector(".btn-help")!;
     this.deathEl = this.buildDeath();
     this.pauseEl = el("div", "overlay pause hidden");
     this.pauseEl.innerHTML = `
@@ -288,6 +297,23 @@ export class HUD {
       this.armorEl.classList.add("show");
     } else {
       this.armorEl.classList.remove("show");
+    }
+
+    if (s.onboarding && s.onboarding.length) {
+      const sig = s.onboarding.map((o) => (o.done ? "1" : "0")).join("");
+      if (sig !== this.onboardSig) {
+        this.onboardSig = sig;
+        this.onboardEl.innerHTML =
+          `<div class="ob-title">Getting Started</div>` +
+          s.onboarding
+            .map((o) => `<div class="ob-step ${o.done ? "done" : ""}">${o.done ? "✓" : "○"} ${o.label}</div>`)
+            .join("") +
+          `<div class="ob-hint">Press <span class="key">[H]</span> for help</div>`;
+      }
+      this.onboardEl.classList.add("show");
+    } else {
+      this.onboardSig = "";
+      this.onboardEl.classList.remove("show");
     }
 
     this.renderHotbar(s.hotbar);
@@ -388,17 +414,18 @@ export class HUD {
     const o = el("div", "overlay");
     o.innerHTML = `
       <h1>VEIL<span class="b">BORN</span></h1>
-      <div class="sub">Phase 1 Prototype · The Ashfields</div>
+      <div class="sub">Sci-Fi Survival · the living world of Vaelun</div>
       <div class="controls">
         <div><b>Move</b> W A S D</div>
         <div><b>Sprint</b> Hold Shift &nbsp; <b>Crouch</b> Ctrl / C &nbsp; <b>Jump</b> Space</div>
         <div><b>Look</b> Mouse &nbsp; <b>Interact</b> E</div>
         <div><b>Hotbar</b> 1 – 6 &nbsp; <b>Inventory / Craft</b> Tab &nbsp; <b>Build</b> B</div>
-        <div><b>Survey Log</b> J &nbsp; <b>Pause look</b> Esc</div>
+        <div><b>Survey Log</b> J &nbsp; <b>Help</b> H &nbsp; <b>Pause look</b> Esc</div>
       </div>
       <div class="intro-buttons">
         <button class="intro-btn primary btn-continue hidden">Continue</button>
         <button class="intro-btn btn-new">New Game</button>
+        <button class="intro-btn btn-help">How to Play</button>
         <button class="intro-btn btn-settings">Settings</button>
       </div>`;
     return o;
