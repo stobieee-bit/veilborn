@@ -1,5 +1,7 @@
 # VEILBORN — Prototype (Phases 1–12, complete)
 
+**▶ Play it in your browser: https://stobieee-bit.github.io/veilborn/** (click the title screen to lock the mouse and play)
+
 A playable first-person survival prototype for **VEILBORN**, built with **Three.js + TypeScript + Vite**. This implements **all 12 phases** of the GDD build plan (§17) — the prototype is **content-complete, beatable, polished, and balanced**: the full survival/crafting/base loop across all five biomes, the narrative layer, **both endings**, an adaptive procedural soundtrack + full SFX pass, strict conditional HUD, autosave, an accessibility + difficulty options menu, and a final QA + balance pass (survival-economy tuning, a verified bug sweep, and a forward-rendering performance optimization).
 
 > The full game design lives in [`docs/GDD.md`](docs/GDD.md). This prototype is engine-agnostic spec → concrete web build.
