@@ -35,6 +35,7 @@ export interface HudState {
   threat: number;
   biome: string;
   veilSense: boolean; // A02 augment: show the Veil Exposure readout
+  veilDanger: boolean; // A02 augment: standing in a Veil-dense danger zone
   minimalHud: boolean; // GDD §13.2 conditional visibility (off = always show)
   tracer: { bearing: number; dist: number; label: string } | null;
   prompt: string | null;
@@ -56,6 +57,14 @@ export class HUD {
   private readonly promptEl: HTMLDivElement;
   private readonly toastsEl: HTMLDivElement;
   private readonly hotbarEl: HTMLDivElement;
+  // Cached hotbar cell refs + last-rendered signature (avoids per-frame querySelector + DOM writes).
+  private hotbarCells: {
+    root: HTMLDivElement;
+    name: HTMLElement;
+    qty: HTMLElement;
+    dot: HTMLElement;
+    sig: string;
+  }[] = [];
   private readonly rows: Record<string, StatRow> = {};
   private readonly veilOverlay: HTMLDivElement;
   private readonly coldOverlay: HTMLDivElement;
@@ -219,7 +228,11 @@ export class HUD {
 
     if (s.veilSense) {
       this.veilReadoutEl.classList.add("show");
-      this.veilReadoutEl.textContent = `VEIL EXPOSURE  ${Math.round(s.veilExposure)}%`;
+      const pct = Math.round(s.veilExposure);
+      this.veilReadoutEl.textContent = s.veilDanger
+        ? `VEIL EXPOSURE  ${pct}%  ⚠ DENSE ZONE`
+        : `VEIL EXPOSURE  ${pct}%`;
+      this.veilReadoutEl.classList.toggle("danger", s.veilDanger);
     } else {
       this.veilReadoutEl.classList.remove("show");
     }
@@ -291,25 +304,35 @@ export class HUD {
   }
 
   private renderHotbar(slots: HotbarSlotView[]): void {
-    // (Re)build only when slot count changes; otherwise patch in place.
-    if (this.hotbarEl.children.length !== slots.length) {
+    // (Re)build the cells + cache their child refs only when the slot count changes.
+    if (this.hotbarCells.length !== slots.length) {
       this.hotbarEl.innerHTML = "";
+      this.hotbarCells = [];
       for (let i = 0; i < slots.length; i++) {
         const slot = el("div", "slot");
         slot.innerHTML = `<span class="num">${i + 1}</span><span class="qty"></span><span class="dot"></span><span class="name"></span>`;
         this.hotbarEl.appendChild(slot);
+        this.hotbarCells.push({
+          root: slot,
+          name: slot.querySelector(".name") as HTMLElement,
+          qty: slot.querySelector(".qty") as HTMLElement,
+          dot: slot.querySelector(".dot") as HTMLElement,
+          sig: "",
+        });
       }
     }
-    slots.forEach((v, i) => {
-      const slot = this.hotbarEl.children[i] as HTMLDivElement;
-      slot.className = `slot ${v.empty ? "" : v.kind} ${v.selected ? "selected" : ""}`;
-      (slot.querySelector(".name") as HTMLElement).textContent = v.empty ? "" : v.name;
-      (slot.querySelector(".qty") as HTMLElement).textContent =
-        !v.empty && v.qty > 1 ? String(v.qty) : "";
-      (slot.querySelector(".dot") as HTMLElement).style.display = v.empty
-        ? "none"
-        : "block";
-    });
+    for (let i = 0; i < slots.length; i++) {
+      const v = slots[i];
+      const cell = this.hotbarCells[i];
+      // Only touch the DOM when this slot's rendered state actually changed.
+      const sig = `${v.empty ? 1 : 0}|${v.kind}|${v.selected ? 1 : 0}|${v.empty ? "" : v.name}|${v.empty ? 0 : v.qty}`;
+      if (sig === cell.sig) continue;
+      cell.sig = sig;
+      cell.root.className = `slot ${v.empty ? "" : v.kind} ${v.selected ? "selected" : ""}`;
+      cell.name.textContent = v.empty ? "" : v.name;
+      cell.qty.textContent = !v.empty && v.qty > 1 ? String(v.qty) : "";
+      cell.dot.style.display = v.empty ? "none" : "block";
+    }
   }
 
   toast(message: string): void {

@@ -129,6 +129,8 @@ export class Game {
   private footstepTimer = 0;
   private autosaveTimer = 0;
   private lastBiome = "";
+  private readonly safeZoneCache: SafeZone[] = [];
+  private safeZoneVersion = -1;
   private inEpisode = false;
   private episodeTimer = 0;
   private embraceTimer = 0;
@@ -280,7 +282,7 @@ export class Game {
       this.narrative.load(data.narrative);
       this.adaptation.load(data.adaptation);
       this.tier2Unlocked = data.tier2 ?? false;
-      this.tier3Unlocked = data.tier3 ?? false;
+      this.tier3Unlocked = (data.tier3 ?? false) || this.narrative.cradleReached;
       this.applyAugmentEffects();
       this.clearMarkers();
       this.spineLingerTimer = 0;
@@ -527,27 +529,44 @@ export class Game {
     return this.inventory.count("topographic_mapper") > 0;
   }
 
+  /** GDD §8.2 Veil-Sense — standing in a Veil-dense danger zone (crystals / Sink). */
+  private inVeilDangerZone(): boolean {
+    const p = this.controller.position;
+    if (veilSinkFactor(p.x, p.z) > 0.25) return true;
+    const r2 = CONFIG.veil.crystalRadius ** 2;
+    for (const l of this.world.veilLights) {
+      if ((p.x - l.position.x) ** 2 + (p.z - l.position.z) ** 2 <= r2) return true;
+    }
+    return false;
+  }
+
+  // Reused biome-fog tint anchors (avoid per-frame Color allocations).
+  private readonly fogSpine = new THREE.Color(0x1e2a28);
+  private readonly fogVeilSink = new THREE.Color(0x14202e);
+  private readonly fogWarrens = new THREE.Color(0x140d09);
+  private readonly fogCradle = new THREE.Color(0x2a1008);
+
   private applyBiomeFog(): void {
     const cam = this.controller.camera.position;
     const sf = spinewoodsFactor(cam.x, cam.z);
     if (sf > 0) {
       this.world.fog.density += sf * 0.006;
-      this.world.fog.color.lerp(new THREE.Color(0x1e2a28), sf * 0.5);
+      this.world.fog.color.lerp(this.fogSpine, sf * 0.5);
     }
     const vs = veilSinkFactor(cam.x, cam.z);
     if (vs > 0) {
       this.world.fog.density += vs * CONFIG.veilSink.fogAdd;
-      this.world.fog.color.lerp(new THREE.Color(0x14202e), vs * 0.6);
+      this.world.fog.color.lerp(this.fogVeilSink, vs * 0.6);
     }
     const wa = warrensFactor(cam.x, cam.z);
     if (wa > 0) {
       this.world.fog.density += wa * CONFIG.warrens.fogAdd;
-      this.world.fog.color.lerp(new THREE.Color(0x140d09), wa * 0.7);
+      this.world.fog.color.lerp(this.fogWarrens, wa * 0.7);
     }
     const cr = cradleFactor(cam.x, cam.z);
     if (cr > 0) {
       this.world.fog.density += cr * 0.004;
-      this.world.fog.color.lerp(new THREE.Color(0x2a1008), cr * 0.55);
+      this.world.fog.color.lerp(this.fogCradle, cr * 0.55);
     }
   }
 
@@ -598,6 +617,10 @@ export class Game {
       }
       this.hud.toast(`${res.name} slain${gained.length ? " — +" + gained.join(", ") : ""}`);
     } else if (res.blocked) {
+      // GDD §10.2 — a blocked swing costs more stamina than a normal one.
+      this.stats.drainStamina(
+        CONFIG.combat.blockedSwingStaminaCost - CONFIG.combat.swingStaminaCost,
+      );
       this.hud.toast(`${res.name} blocks your strike`);
     }
     this.wearTool(CONFIG.tools.meleeWearPerHit);
@@ -634,19 +657,42 @@ export class Game {
     this.controller.grappleTo(hit.point);
   }
 
-  /** GDD §11.2 — scan for nearby material deposits and mark them. */
+  /** GDD §11.2 — scan a 30m radius for material deposits, lore, and creatures. */
   private scan(): void {
     if (this.scanCooldown > 0) return;
     this.scanCooldown = CONFIG.scan.cooldownSec;
     this.audio.scan();
     const pos = this.controller.position;
-    const found = this.world.resourceNodes.filter(
-      (n) =>
-        n.remaining > 0 &&
-        Math.hypot(n.mesh.position.x - pos.x, n.mesh.position.z - pos.z) <= CONFIG.scan.radius,
-    );
-    for (const n of found) this.addScanMarker(n.mesh.position);
-    this.hud.toast(`Scan: ${found.length} deposit${found.length === 1 ? "" : "s"} detected`);
+    const r2 = CONFIG.scan.radius ** 2;
+    const within = (x: number, z: number) => (x - pos.x) ** 2 + (z - pos.z) ** 2 <= r2;
+
+    let deposits = 0;
+    for (const n of this.world.resourceNodes) {
+      if (n.remaining > 0 && within(n.mesh.position.x, n.mesh.position.z)) {
+        this.addScanMarker(n.mesh.position, 0x3fe6c8); // teal — material deposit
+        deposits++;
+      }
+    }
+    let loreCount = 0;
+    for (const o of this.lore.interactables()) {
+      if (within(o.position.x, o.position.z)) {
+        this.addScanMarker(o.position, 0xffcf6a); // amber — lore fragment
+        loreCount++;
+      }
+    }
+    let creatures = 0;
+    for (const c of this.fauna.creatures) {
+      if (c.alive && within(c.pos.x, c.pos.z)) {
+        this.addScanMarker(c.pos, 0xff5a4d); // red — creature signature
+        creatures++;
+      }
+    }
+
+    const parts = [`${deposits} deposit${deposits === 1 ? "" : "s"}`];
+    if (loreCount) parts.push(`${loreCount} lore`);
+    if (creatures) parts.push(`${creatures} fauna`);
+    this.hud.toast(`Scan: ${parts.join(", ")} detected`);
+
     if (this.inventory.damageDurability("scanner", CONFIG.scan.durabilityCost) === "broke") {
       this.controller.setEquippedTool(null);
       this.equippedItemId = null;
@@ -654,10 +700,10 @@ export class Game {
     }
   }
 
-  private addScanMarker(at: THREE.Vector3): void {
+  private addScanMarker(at: THREE.Vector3, color = 0x3fe6c8): void {
     const mesh = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.4, 0),
-      new THREE.MeshBasicMaterial({ color: 0x3fe6c8, transparent: true, opacity: 0.9 }),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 }),
     );
     mesh.position.set(at.x, at.y + 2.4, at.z);
     this.world.scene.add(mesh);
@@ -718,9 +764,7 @@ export class Game {
     const pos = this.controller.position;
     const w = CONFIG.warmth;
     const v = CONFIG.veil;
-    const nearFire = this.firePositions().some(
-      (f) => (pos.x - f.x) ** 2 + (pos.z - f.z) ** 2 <= w.fireRadius ** 2,
-    );
+    const nearFire = this.nearAnyFire(pos.x, pos.z);
 
     const sink = veilSinkFactor(pos.x, pos.z);
     const underground = this.isUnderground();
@@ -754,20 +798,29 @@ export class Game {
     return { warmth, veil };
   }
 
-  private firePositions(): { x: number; z: number }[] {
-    return this.buildSystem.placed
-      .filter((m) => m.type === ModuleType.FirePit)
-      .map((m) => ({ x: m.object.position.x, z: m.object.position.z }));
+  /** True if (x,z) is within fire-warmth radius of any placed Fire Pit. */
+  private nearAnyFire(x: number, z: number): boolean {
+    const r2 = CONFIG.warmth.fireRadius ** 2;
+    const fires = this.buildSystem.firePositions; // cached array
+    for (let i = 0; i < fires.length; i++) {
+      const f = fires[i];
+      if ((x - f.x) ** 2 + (z - f.z) ** 2 <= r2) return true;
+    }
+    return false;
   }
 
   private safeZones(): SafeZone[] {
-    const zones = this.firePositions().map((f) => ({
-      x: f.x,
-      z: f.z,
-      r: CONFIG.fauna.safeRadius,
-    }));
-    zones.push({ x: 0, z: 0, r: CONFIG.fauna.safeRadius }); // the spawn pod
-    return zones;
+    // Rebuilt only when the base changes (fauna reads this every frame).
+    if (this.safeZoneVersion !== this.buildSystem.structureVersion) {
+      this.safeZoneVersion = this.buildSystem.structureVersion;
+      const zones = this.safeZoneCache;
+      zones.length = 0;
+      for (const f of this.buildSystem.firePositions) {
+        zones.push({ x: f.x, z: f.z, r: CONFIG.fauna.safeRadius });
+      }
+      zones.push({ x: 0, z: 0, r: CONFIG.fauna.safeRadius }); // the spawn pod
+    }
+    return this.safeZoneCache;
   }
 
   private faunaContext(): CreatureContext {
@@ -865,8 +918,10 @@ export class Game {
     const p = this.controller.position;
     if (!this.narrative.cradleReached && biomeAt(p.x, p.z) === Biome.Cradle) {
       this.narrative.cradleReached = true;
+      this.tier3Unlocked = true; // GDD §5.2 — Tier 3 fabrication unlocks at the Cradle
       this.narrative.pushBeat("You stand in the Cradle's red shadow. The planet turns to face you.");
       this.hud.toast("The Cradle — Act 3 begins");
+      this.hud.toast("Tier 3 fabrication unlocked — Veil-forged recipes available");
     }
     for (const c of this.fauna.creatures) {
       if (c.alive && c.isAggressive && this.narrative.encounter(c.def.id)) {
@@ -997,9 +1052,7 @@ export class Game {
       if (c.alive) nearest = Math.min(nearest, c.pos.distanceTo(pos));
     }
     const nearFire =
-      this.firePositions().some(
-        (f) => (pos.x - f.x) ** 2 + (pos.z - f.z) ** 2 <= CONFIG.warmth.fireRadius ** 2,
-      ) || Math.hypot(pos.x, pos.z) < CONFIG.fauna.safeRadius;
+      this.nearAnyFire(pos.x, pos.z) || Math.hypot(pos.x, pos.z) < CONFIG.fauna.safeRadius;
     let state: MusicState;
     if (this.inEpisode) state = "episode";
     else if (this.fauna.aggroCount > 0 && nearest < 7) state = "combat";
@@ -1360,6 +1413,7 @@ export class Game {
       threat: this.fauna.aggroCount,
       biome: BIOME_LABEL[biomeAt(this.controller.position.x, this.controller.position.z)],
       veilSense: this.augments.hasVeilSense(),
+      veilDanger: this.augments.hasVeilSense() && this.inVeilDangerZone(),
       tracer: this.computeTracer(),
       prompt: t ? `<span class="key">[E]</span> ${t.verb} ${t.label}` : null,
       lookingAtNode: !!t,

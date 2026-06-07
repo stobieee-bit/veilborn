@@ -423,6 +423,11 @@ body {
 .veil-readout.show {
   opacity: 1;
 }
+.veil-readout.danger {
+  color: #ff8a5a;
+  border-color: #5a2a1a;
+  background: rgba(40, 12, 8, 0.72);
+}
 .minimap {
   position: absolute;
   top: 50px;

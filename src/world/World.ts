@@ -60,6 +60,10 @@ export class World {
   readonly fog: THREE.FogExp2;
 
   readonly resourceNodes: ResourceNode[] = [];
+  // Cached list of currently-gatherable node meshes for the interaction raycast,
+  // rebuilt only when a node depletes/resets (avoids a per-frame filter+map).
+  private readonly gatherMeshes: THREE.Mesh[] = [];
+  private gatherDirty = true;
   readonly veilLights: THREE.PointLight[] = [];
   /** Biome-local point lights culled by player distance (GDD §17 Phase 12 perf:
    * forward rendering uploads every visible light to every material, so distant
@@ -840,10 +844,22 @@ export class World {
     return node;
   }
 
+  /** Meshes of currently-gatherable nodes (remaining > 0) for the interaction
+   * raycast; rebuilt in place only when the set changes (see {@link gatherDirty}). */
+  gatherableMeshes(): THREE.Mesh[] {
+    if (this.gatherDirty) {
+      this.gatherMeshes.length = 0;
+      for (const n of this.resourceNodes) if (n.remaining > 0) this.gatherMeshes.push(n.mesh);
+      this.gatherDirty = false;
+    }
+    return this.gatherMeshes;
+  }
+
   /** Mark a node depleted: hide it but keep it for save/load persistence. */
   depleteNode(node: ResourceNode): void {
     node.remaining = 0;
     node.mesh.visible = false;
+    this.gatherDirty = true;
   }
 
   /** Restore every node to its initial state (used by New Game). */
@@ -852,6 +868,7 @@ export class World {
       node.remaining = node.initialRemaining;
       node.mesh.visible = true;
     }
+    this.gatherDirty = true;
   }
 
   /** Snapshot of every node's remaining harvests, for the save file. */
@@ -871,5 +888,6 @@ export class World {
       node.remaining = remaining;
       node.mesh.visible = remaining > 0;
     }
+    this.gatherDirty = true;
   }
 }

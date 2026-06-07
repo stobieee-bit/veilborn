@@ -249,4 +249,25 @@ These are deliberate simplifications, flagged in-code, to be revisited later:
 
 The prototype now covers the full GDD §17 build plan end to end: the survival/crafting/base loop, all five biomes, seven creatures (incl. the adapting apex), the narrative + lore archive, both endings, the audio + accessibility polish layer, and a final QA + balance pass. It is playable start to finish and beatable by either ending.
 
-Natural next steps beyond the prototype (out of the current scope): art/audio asset production to replace the procedural placeholders, the GDD-canonical 50-minute day (`CONFIG.time.secondsPerFullDay = 3000`), handcrafted biome geometry in place of the circular greybox regions, draw-call batching for the ~370 individual prop meshes, and multi-slot saves.
+### Post-build audit (in-scope polish)
+
+A recursive GDD-conformance / dead-code / performance audit after Phase 12 landed these in-scope fixes:
+
+- **Tier-3 now unlocks at the Cradle** (GDD §5.2). The flag was never set, so the entire Veil-null augment chain (recipe → item → A07 effect) was unreachable; reaching the Cradle now flips it, with save back-compat.
+- **Veil-Sense (A02) marks danger zones** (GDD §8.2) — the HUD readout flags "⚠ DENSE ZONE" in crystal clusters / the Veil Sink, not just the exposure number.
+- **Scanner detects lore + creatures** (GDD §11.2), not only material deposits — colour-coded pings (teal deposits, amber lore, red fauna).
+- **Blocked melee swings cost 15 stamina** vs 8 for a normal swing (GDD §10.2).
+- **Deep Lung** reads its multiplier from config (single source of truth).
+- **Performance:** removed the steady-state per-frame GC pressure and the two broadest scans — the 208-node interaction raycast list and fire-position lookups are cached and rebuilt only on change; movement / sun / fog vector+colour scratch is hoisted out of the loop; the hotbar only touches the DOM when a slot changes (was ~18 `querySelector`s/frame). Combined with the Phase-12 biome-light culling (17 → 8 active lights in the Ashfields).
+- **Dead code removed:** an unused config block plus several orphaned methods/getters.
+
+### Known gaps deliberately left out of scope
+
+These GDD items are real but were left out to avoid destabilising the finished build — each is a self-contained subsystem deserving its own pass:
+
+- **Structure integrity / weather degradation + maintenance** (GDD §6.1, §6.4) — the `integrity` field is tracked and saved but never decayed; needs a decay tick + repair loop + UI.
+- **Full power model & Ion-surge blackouts** (GDD §6.3) — the current node powers consumers within 5 m unconditionally; solar/battery/generator sources, watt budgets, OVERLOADED/OFFLINE status, and the third weather event are not implemented.
+- **Cooking / cultivated crops** (GDD §4.3) and the **Crawler fire-resistance** adaptation branch (GDD §9.4) — both need a damage-type / food-quality system first.
+- Smaller deltas: day:night runs 50:50 (spec 28:22), carry tops out at 40 kg (spec 45), `craft_time` is instant, the Spineback spawns at ground level rather than from the canopy, and the Survey Log lacks dedicated map/recipe/augment tabs (that data is surfaced elsewhere).
+
+Natural next steps beyond the prototype: art/audio assets, the canonical 50-minute day (`CONFIG.time.secondsPerFullDay = 3000`), handcrafted biome geometry in place of the circular greybox regions, draw-call batching for the ~370 individual prop meshes, and multi-slot saves.

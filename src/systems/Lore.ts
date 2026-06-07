@@ -55,10 +55,6 @@ export class LoreSystem {
     return this.found.size;
   }
 
-  get placedCount(): number {
-    return LORE_FRAGMENTS.length;
-  }
-
   /** Collected fragments (for the Survey Log archive), in fixed order. */
   collected(): LoreFragment[] {
     return LORE_FRAGMENTS.filter((f) => this.found.has(f.id));

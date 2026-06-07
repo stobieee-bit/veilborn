@@ -1,3 +1,4 @@
+import { CONFIG } from "../config";
 import { AUGMENT_BY_ID, MAX_AUGMENT_SLOTS } from "../data/augments";
 
 /**
@@ -10,10 +11,6 @@ export class AugmentSystem {
 
   reset(): void {
     this.installed.clear();
-  }
-
-  isInstalled(id: string): boolean {
-    return this.installed.has(id);
   }
 
   get installedIds(): string[] {
@@ -79,6 +76,6 @@ export class AugmentSystem {
   }
   /** Deep Lung (A05): +50% oxygen reserve (GDD §8.2). */
   oxygenMaxMult(): number {
-    return this.installed.has("A05") ? 1.5 : 1;
+    return this.installed.has("A05") ? CONFIG.oxygen.deepLungMult : 1;
   }
 }

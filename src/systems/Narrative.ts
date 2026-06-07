@@ -50,9 +50,6 @@ export class Narrative {
     this.encountered.add(id);
     return true; // first encounter
   }
-  isEncountered(id: string): boolean {
-    return this.encountered.has(id);
-  }
   encounteredIds(): string[] {
     return [...this.encountered];
   }

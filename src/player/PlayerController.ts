@@ -128,9 +128,10 @@ export class PlayerController {
     const strafeInput =
       (input.isDown("KeyD") ? 1 : 0) - (input.isDown("KeyA") ? 1 : 0);
 
-    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
-    const wish = new THREE.Vector3()
+    const forward = this.fwdScratch.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const right = this.rightScratch.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const wish = this.wishScratch
+      .set(0, 0, 0)
       .addScaledVector(forward, fwdInput)
       .addScaledVector(right, strafeInput);
     const moving = wish.lengthSq() > 0;
@@ -192,6 +193,12 @@ export class PlayerController {
     this.updateViewmodel(dt, moving && this.grounded, speed);
   }
 
+  // Reused per-frame movement scratch (avoid Vector3 allocations each tick).
+  private readonly fwdScratch = new THREE.Vector3();
+  private readonly rightScratch = new THREE.Vector3();
+  private readonly wishScratch = new THREE.Vector3();
+  private readonly grappleDir = new THREE.Vector3();
+
   setEquippedTool(itemId: string | null): void {
     if (this.toolMesh) {
       this.camera.remove(this.toolMesh);
@@ -201,10 +208,6 @@ export class PlayerController {
     else if (itemId === "spike_lance") this.toolMesh = makeSpikeLanceViewmodel();
     else if (itemId === "scanner") this.toolMesh = makeScannerViewmodel();
     if (this.toolMesh) this.camera.add(this.toolMesh);
-  }
-
-  hasToolEquipped(): boolean {
-    return this.toolMesh !== null;
   }
 
   /** Camera forward direction (unit), for combat aiming. */
@@ -230,7 +233,7 @@ export class PlayerController {
 
   private updateGrapple(dt: number, world: World): void {
     this.grappleTimer -= dt;
-    const dir = new THREE.Vector3().copy(this.grappleTarget).sub(this.position);
+    const dir = this.grappleDir.copy(this.grappleTarget).sub(this.position);
     const dist = dir.length();
     if (dist <= CONFIG.grapple.arriveDist || this.grappleTimer <= 0) {
       this.grappling = false;

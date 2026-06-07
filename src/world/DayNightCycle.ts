@@ -18,6 +18,11 @@ export class DayNightCycle {
   private readonly cSun = new THREE.Color();
   private readonly cHemiSky = new THREE.Color();
 
+  // Reused per-frame scratch (sun direction + sun-color anchors).
+  private readonly sunDir = new THREE.Vector3();
+  private readonly sunWarm = new THREE.Color(0xff8a3c);
+  private readonly sunHot = new THREE.Color(0xffe6b8);
+
   // Palette anchors.
   private readonly dayTop = new THREE.Color(0x8a5e36);
   private readonly dayBottom = new THREE.Color(0xcf9a63);
@@ -54,17 +59,13 @@ export class DayNightCycle {
 
     // --- Sun direction & light ---
     const arc = ((this.timeOfDay - 6) / 24) * Math.PI * 2;
-    const dir = new THREE.Vector3(
-      Math.cos(arc),
-      Math.max(elev, -0.2),
-      Math.sin(arc) * 0.6,
-    ).normalize();
+    const dir = this.sunDir
+      .set(Math.cos(arc), Math.max(elev, -0.2), Math.sin(arc) * 0.6)
+      .normalize();
     this.world.sun.position.copy(cameraPos).addScaledVector(dir, 120);
     this.world.sun.target.position.copy(cameraPos);
     this.world.sun.intensity = clamp01(elev * 1.6) * 1.7;
-    this.cSun
-      .copy(new THREE.Color(0xff8a3c))
-      .lerp(new THREE.Color(0xffe6b8), clamp01(elev * 3));
+    this.cSun.copy(this.sunWarm).lerp(this.sunHot, clamp01(elev * 3));
     this.world.sun.color.copy(this.cSun);
 
     // --- Ambient / hemisphere (keep a Veil-lit floor at night) ---

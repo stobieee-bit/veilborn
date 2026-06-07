@@ -69,11 +69,3 @@ export function readSave(): SaveData | null {
     return null;
   }
 }
-
-export function clearSave(): void {
-  try {
-    localStorage.removeItem(CONFIG.save.key);
-  } catch {
-    /* ignore */
-  }
-}

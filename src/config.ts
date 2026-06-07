@@ -116,10 +116,6 @@ export const CONFIG = {
     fogAdd: 0.03, // very low visibility
   },
 
-  purge: {
-    veilReduce: 45, // Purge Compound (GDD §4.1)
-  },
-
   // --- Phase 8: Crust Warrens ---
   oxygen: {
     max: 100,
@@ -155,7 +151,8 @@ export const CONFIG = {
     meleeRange: 2.8,
     meleeArcDot: 0.5, // cos(~60°)
     swingCooldownSec: 0.5,
-    swingStaminaCost: 8, // GDD §10.2
+    swingStaminaCost: 8, // GDD §10.2 — normal swing
+    blockedSwingStaminaCost: 15, // GDD §10.2 — a blocked swing costs more
     unarmedDamage: 6, // fallback when nothing is equipped; tools use ItemDef.toolDamage
     knockback: 2.6,
   },

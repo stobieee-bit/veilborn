@@ -92,6 +92,15 @@ export class BuildSystem implements BaseProvider {
   private propCylinders: { x: number; z: number; r: number }[] = [];
   private foundationTops: { cx: number; cz: number; topY: number }[] = [];
   private surfaceObjects: THREE.Object3D[] = [];
+  // Cached fire-pit positions (warmth / safe-zone / music queries run every frame).
+  private readonly fireCache: { x: number; z: number }[] = [];
+  /** Bumped whenever placed modules change, so per-frame callers can cache derived lists. */
+  structureVersion = 0;
+
+  /** Cached fire-pit positions, rebuilt only on placement change. */
+  get firePositions(): { x: number; z: number }[] {
+    return this.fireCache;
+  }
 
   private readonly ghostValid = new THREE.MeshStandardMaterial({
     color: 0x3fe6c8,
@@ -422,8 +431,12 @@ export class BuildSystem implements BaseProvider {
     this.propCylinders = [];
     this.foundationTops = [];
     this.surfaceObjects = [this.world.groundMesh];
+    this.fireCache.length = 0;
 
     for (const m of this.placed) {
+      if (m.type === ModuleType.FirePit) {
+        this.fireCache.push({ x: m.object.position.x, z: m.object.position.z });
+      }
       if (m.type === ModuleType.Foundation) {
         this.foundationTops.push({ cx: m.cx, cz: m.cz, topY: m.topY });
         this.surfaceObjects.push(m.object);
@@ -438,6 +451,7 @@ export class BuildSystem implements BaseProvider {
       }
     }
     this.recomputePower();
+    this.structureVersion++;
   }
 
   private wallSegment(m: PlacedModule, shrink: number): Segment {

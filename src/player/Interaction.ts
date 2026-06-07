@@ -21,6 +21,8 @@ export class Interaction {
   current: InteractTarget | null = null;
   private readonly raycaster = new THREE.Raycaster();
   private readonly center = new THREE.Vector2(0, 0);
+  // Reused raycast-input buffer (avoids a fresh combined array each frame).
+  private readonly targets: THREE.Object3D[] = [];
 
   update(
     camera: THREE.Camera,
@@ -32,13 +34,14 @@ export class Interaction {
     this.raycaster.setFromCamera(this.center, camera);
     this.raycaster.far = CONFIG.player.interactDistance;
 
-    const nodeMeshes = world.resourceNodes
-      .filter((n) => n.remaining > 0)
-      .map((n) => n.mesh);
-    const hits = this.raycaster.intersectObjects(
-      [...nodeMeshes, ...moduleObjects, ...loreObjects, ...crashObjects],
-      true,
-    );
+    const targets = this.targets;
+    targets.length = 0;
+    const nodeMeshes = world.gatherableMeshes();
+    for (let i = 0; i < nodeMeshes.length; i++) targets.push(nodeMeshes[i]);
+    for (let i = 0; i < moduleObjects.length; i++) targets.push(moduleObjects[i]);
+    for (let i = 0; i < loreObjects.length; i++) targets.push(loreObjects[i]);
+    for (let i = 0; i < crashObjects.length; i++) targets.push(crashObjects[i]);
+    const hits = this.raycaster.intersectObjects(targets, true);
 
     this.current = null;
     if (hits.length === 0) return;
