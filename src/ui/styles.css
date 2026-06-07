@@ -61,6 +61,11 @@ body {
   transform: scale(1.8);
   background: var(--teal);
 }
+.crosshair.hit {
+  transform: scale(2.6);
+  background: #ff5a4d;
+  box-shadow: 0 0 8px rgba(255, 90, 77, 0.9);
+}
 
 /* --- Stat cluster (bottom-left) --- */
 .stats {

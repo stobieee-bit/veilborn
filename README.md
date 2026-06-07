@@ -294,6 +294,13 @@ Now that the demo is public, first-time players get a hand:
 - **Getting-started checklist** — a small first-run HUD guide that ticks off as you gather, craft, eat/drink, and build; shows once, then never again (persisted).
 - **Accidental-exit guard** — during an active run the page prompts before a reload/close (the only reliable catch for browser-reserved keys like Ctrl+W), and the page-cancellable shortcuts (F5, Ctrl+R/S/P) are suppressed while the pointer is locked.
 
+### Game feel
+
+Combat and movement now carry weight (code-side juice, no art assets):
+
+- **Camera shake** — a brief, decaying screen-shake on landing a melee hit, taking damage (scaled by amount), a hard landing, and a Bellower's call. Magnitude is clamped so it never gets disorienting.
+- **Hit marker + impact sparks** — the crosshair flashes red and a short burst of sparks pops at the point of a melee hit (a bigger burst on a kill). A blocked strike gives no false confirmation.
+
 ### Known gaps still out of scope
 
 Larger self-contained subsystems left for their own pass (to avoid destabilising the finished build):

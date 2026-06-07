@@ -25,6 +25,7 @@ export interface MeleeResult {
   blocked: boolean;
   name: string;
   loot: { itemId: string; qty: number }[];
+  point?: THREE.Vector3; // world-space hit location (for impact FX)
 }
 
 const NONE: MeleeResult = { hit: false, killed: false, blocked: false, name: "", loot: [] };
@@ -146,13 +147,14 @@ export class FaunaSystem {
     const knock = new THREE.Vector3(best.pos.x - origin.x, 0, best.pos.z - origin.z).normalize();
     best.takeDamage(dmg, knock, knockback);
     if (best.def.isApex) this.onApexMeleeHit(!best.alive);
+    const point = new THREE.Vector3(best.pos.x, best.pos.y + 0.6, best.pos.z);
     if (!best.alive) {
       const loot = best.rollLoot();
       this.world.scene.remove(best.mesh);
       this.creatures.splice(this.creatures.indexOf(best), 1);
-      return { hit: true, killed: true, blocked, name: best.def.name, loot };
+      return { hit: true, killed: true, blocked, name: best.def.name, loot, point };
     }
-    return { hit: true, killed: false, blocked, name: best.def.name, loot: [] };
+    return { hit: true, killed: false, blocked, name: best.def.name, loot: [], point };
   }
 
   private spawnPack(

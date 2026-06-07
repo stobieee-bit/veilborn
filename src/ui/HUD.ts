@@ -84,6 +84,7 @@ export class HUD {
   private readonly durabilityLabel: HTMLSpanElement;
   private readonly saveIndicator: HTMLDivElement;
   private saveTimer = 0;
+  private hitMarkerTimer = 0;
   private readonly veilReadoutEl: HTMLDivElement;
   private readonly hallucinateEl: HTMLDivElement;
   private readonly episodeEl: HTMLDivElement;
@@ -327,6 +328,13 @@ export class HUD {
     this.saveIndicator.classList.add("show");
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.saveIndicator.classList.remove("show"), 1400);
+  }
+
+  /** Briefly flash the crosshair to confirm a melee hit landed (game feel). */
+  hitMarker(): void {
+    this.crosshair.classList.add("hit");
+    window.clearTimeout(this.hitMarkerTimer);
+    this.hitMarkerTimer = window.setTimeout(() => this.crosshair.classList.remove("hit"), 110);
   }
 
   setEpisodeText(text: string): void {

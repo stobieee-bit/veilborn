@@ -183,6 +183,18 @@ export const CONFIG = {
     wearPerHit: 1, // armor durability lost per hit taken
   },
 
+  // --- Game feel (camera shake / impact juice) ---
+  feel: {
+    shakeMax: 0.32, // clamp on accumulated camera-shake magnitude (m)
+    shakeDecay: 1.8, // shake magnitude lost per second
+    hitShake: 0.07, // landing a melee hit
+    killShake: 0.13, // slaying a creature
+    hurtShake: 0.16, // taking damage (base)
+    bellowShake: 0.1, // a Bellower's call
+    landShakeScale: 0.012, // per m/s of impact velocity on landing
+    landShakeMax: 0.18,
+  },
+
   // --- Phase 4: tools & scanner ---
   tools: {
     meleeWearPerHit: 1.5, // GDD §10.3

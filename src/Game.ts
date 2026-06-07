@@ -59,6 +59,9 @@ import { Onboarding } from "./systems/Onboarding";
 
 type GameState = "intro" | "playing" | "dead" | "ending";
 
+/** Shared geometry for impact sparks (one instance, reused by every particle). */
+const IMPACT_GEO = new THREE.OctahedronGeometry(0.09, 0);
+
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -143,6 +146,7 @@ export class Game {
   private embraceTimer = 0;
   private chatterTimer = 12;
   private scanMarkers: { mesh: THREE.Mesh; ttl: number; max: number }[] = [];
+  private impacts: { mesh: THREE.Mesh; vel: THREE.Vector3; ttl: number; max: number }[] = [];
   private lastTime = 0;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
@@ -183,6 +187,7 @@ export class Game {
     this.fauna.onBellow = () => {
       this.hud.toast("A Bellower's call rolls across the land…");
       this.audio.bellow();
+      this.controller.addShake(CONFIG.feel.bellowShake);
     };
     this.fauna.onApexMeleeHit = (killed) => {
       const was = this.adaptation.apexAdapted;
@@ -438,6 +443,7 @@ export class Game {
 
     this.scanCooldown = Math.max(0, this.scanCooldown - dt);
     this.updateMarkers(dt);
+    this.updateImpacts(dt);
 
     if (this.state === "playing" && this.ownsMapper()) {
       this.minimap.show();
@@ -678,7 +684,12 @@ export class Game {
       dmg,
       CONFIG.combat.knockback,
     );
-    if (res.hit) this.audio.hit();
+    if (res.hit && !res.blocked) {
+      this.audio.hit();
+      this.hud.hitMarker();
+      this.controller.addShake(res.killed ? CONFIG.feel.killShake : CONFIG.feel.hitShake);
+      if (res.point) this.spawnImpact(res.point, res.killed ? 0xffd9a0 : 0xff7a5a, res.killed ? 12 : 6);
+    }
     if (res.killed) {
       const gained: string[] = [];
       for (const l of res.loot) {
@@ -796,6 +807,44 @@ export class Game {
     }
   }
 
+  /** Game-feel: a short burst of sparks at a melee hit / kill (GDD-adjacent juice). */
+  private spawnImpact(at: THREE.Vector3, color: number, count: number): void {
+    for (let i = 0; i < count; i++) {
+      const mesh = new THREE.Mesh(
+        IMPACT_GEO,
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false }),
+      );
+      mesh.position.copy(at);
+      const a = Math.random() * Math.PI * 2;
+      const r = 1.5 + Math.random() * 3;
+      const vel = new THREE.Vector3(Math.cos(a) * r, 1 + Math.random() * 3, Math.sin(a) * r);
+      this.world.scene.add(mesh);
+      this.impacts.push({ mesh, vel, ttl: 0.45, max: 0.45 });
+    }
+    while (this.impacts.length > 120) {
+      const old = this.impacts.shift()!;
+      this.world.scene.remove(old.mesh);
+      (old.mesh.material as THREE.Material).dispose();
+    }
+  }
+
+  private updateImpacts(dt: number): void {
+    for (let i = this.impacts.length - 1; i >= 0; i--) {
+      const p = this.impacts[i];
+      p.ttl -= dt;
+      p.vel.y -= 12 * dt; // gravity on the sparks
+      p.mesh.position.addScaledVector(p.vel, dt);
+      const f = Math.max(0, p.ttl / p.max);
+      (p.mesh.material as THREE.MeshBasicMaterial).opacity = f * 0.95;
+      p.mesh.scale.setScalar(0.4 + f * 0.6);
+      if (p.ttl <= 0) {
+        this.world.scene.remove(p.mesh);
+        (p.mesh.material as THREE.Material).dispose();
+        this.impacts.splice(i, 1);
+      }
+    }
+  }
+
   private clearMarkers(): void {
     for (const m of this.scanMarkers) {
       this.world.scene.remove(m.mesh);
@@ -803,6 +852,11 @@ export class Game {
       (m.mesh.material as THREE.Material).dispose();
     }
     this.scanMarkers.length = 0;
+    for (const p of this.impacts) {
+      this.world.scene.remove(p.mesh);
+      (p.mesh.material as THREE.Material).dispose();
+    }
+    this.impacts.length = 0;
   }
 
   private hasFabricator(): boolean {
@@ -936,6 +990,9 @@ export class Game {
         this.wearArmor();
         this.hud.flashDamage();
         this.audio.hurt();
+        this.controller.addShake(
+          Math.min(CONFIG.feel.shakeMax, CONFIG.feel.hurtShake + amount * 0.003),
+        );
       },
     };
   }

@@ -118,6 +118,7 @@ export class PlayerController {
         this.position.y + this.eyeHeight,
         this.position.z,
       );
+      this.applyCameraShake(dt);
       this.updateViewmodel(dt, false, 0);
       return;
     }
@@ -174,6 +175,12 @@ export class PlayerController {
     world.resolveHorizontal(this.position, p.radius);
     const groundY = world.groundHeight(this.position.x, this.position.z);
     if (this.position.y <= groundY) {
+      // Landing impact: a dip of shake scaled by how hard you hit the ground.
+      if (!this.grounded && this.velocityY < -3) {
+        this.addShake(
+          Math.min(CONFIG.feel.landShakeMax, Math.abs(this.velocityY) * CONFIG.feel.landShakeScale),
+        );
+      }
       this.position.y = groundY;
       this.velocityY = 0;
       this.grounded = true;
@@ -189,6 +196,7 @@ export class PlayerController {
       this.position.y + this.eyeHeight,
       this.position.z,
     );
+    this.applyCameraShake(dt);
 
     this.updateViewmodel(dt, moving && this.grounded, speed);
   }
@@ -199,6 +207,25 @@ export class PlayerController {
   private readonly wishScratch = new THREE.Vector3();
   private readonly grappleDir = new THREE.Vector3();
   private torchLight: THREE.PointLight | null = null;
+  private shakeAmount = 0; // current camera-shake magnitude (game feel)
+
+  /** Add an impulse of camera shake (clamped). Decays over the next moments. */
+  addShake(amount: number): void {
+    this.shakeAmount = Math.min(CONFIG.feel.shakeMax, this.shakeAmount + amount);
+  }
+
+  /** Jitter the camera position by the decaying shake amount (call after placement). */
+  private applyCameraShake(dt: number): void {
+    if (this.shakeAmount <= 0.0001) {
+      this.shakeAmount = 0;
+      return;
+    }
+    const s = this.shakeAmount;
+    this.camera.position.x += (Math.random() * 2 - 1) * s;
+    this.camera.position.y += (Math.random() * 2 - 1) * s;
+    this.camera.position.z += (Math.random() * 2 - 1) * s * 0.5;
+    this.shakeAmount = Math.max(0, this.shakeAmount - dt * CONFIG.feel.shakeDecay);
+  }
 
   setEquippedTool(itemId: string | null): void {
     if (this.toolMesh) {
