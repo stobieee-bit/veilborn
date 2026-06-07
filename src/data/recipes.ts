@@ -243,6 +243,79 @@ export const RECIPES: Recipe[] = [
     qualityOutput: QualityEnum.Refined,
   },
 
+  // --- Armor (GDD §7.1 / §5.2). Some are also taught by lore fragments. ---
+  {
+    id: "r_hide_vest",
+    name: "Hide Vest",
+    tier: 1,
+    outputItemId: "hide_vest",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "vaelun_hide", quantity: 3 },
+      { itemId: "fiber_frond", quantity: 2 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Crude,
+  },
+  {
+    id: "r_reinforced_gauntlets",
+    name: "Reinforced Gauntlets",
+    tier: 2,
+    outputItemId: "reinforced_gauntlets",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "vaelun_hide", quantity: 2 },
+      { itemId: "alloy_frame", quantity: 1 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Standard,
+  },
+  {
+    id: "r_alloy_helm",
+    name: "Alloy Helm",
+    tier: 2,
+    outputItemId: "alloy_helm",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "alloy_frame", quantity: 1 },
+      { itemId: "ship_alloy_scrap", quantity: 1 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Standard,
+  },
+  {
+    id: "r_composite_vest",
+    name: "Composite Vest",
+    tier: 2,
+    outputItemId: "composite_vest",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "alloy_frame", quantity: 2 },
+      { itemId: "vaelun_hide", quantity: 2 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Refined,
+  },
+  {
+    id: "r_veil_cuirass",
+    name: "Veil-forged Cuirass",
+    tier: 3,
+    outputItemId: "veil_cuirass",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "energy_cell", quantity: 1 },
+      { itemId: "veil_resin", quantity: 2 },
+      { itemId: "alloy_frame", quantity: 2 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.VeilForged,
+  },
+
   // --- Tier 3 (requires reaching the Cradle; Phase 10) ---
   {
     id: "r_aug_veil_null",

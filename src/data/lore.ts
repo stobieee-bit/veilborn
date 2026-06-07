@@ -35,10 +35,11 @@ export const LORE_FRAGMENTS: LoreFragment[] = [
     type: LoreType.TextLog,
     crew: null,
     content:
-      "Emergency cache 7-B: forty ration packs, two filters, one med-kit. If you're reading this, the cache is already empty. Sorry.",
+      "Emergency cache 7-B: forty ration packs, two filters, one med-kit, and a hide-vest pattern sewn into the lining. If you're reading this, the cache is already empty. Sorry.",
     x: -72,
     z: 52,
     act: 1,
+    unlocksRecipeId: "r_hide_vest",
   },
   {
     id: "LF04",
@@ -319,10 +320,11 @@ export const LORE_FRAGMENTS: LoreFragment[] = [
     type: LoreType.TextLog,
     crew: "Dr. Yena Ash",
     content:
-      "Two ration bars. One filter. My notes. If you're reading this, you got farther than me. Take the augment in the cache — Deep Lung. You'll need the air.",
+      "Two ration bars. One filter. My notes — including the composite-plating pattern I beat out of hull scrap. If you're reading this, you got farther than me. Take the augment in the cache — Deep Lung. You'll need the air.",
     x: 246,
     z: -276,
     act: 3,
+    unlocksRecipeId: "r_composite_vest",
   },
   {
     id: "LF29",

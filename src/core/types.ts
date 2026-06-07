@@ -36,7 +36,11 @@ export enum ItemCategory {
   Consumable = "CONSUMABLE",
   Placeable = "PLACEABLE",
   Augment = "AUGMENT", // installed at a Medical Station, not used from the hotbar
+  Armor = "ARMOR", // worn equipment (GDD §7.1 EquipmentSlots); auto-equips best per slot
 }
+
+/** GDD §7.1 equipment slots that protective armor occupies. */
+export type ArmorSlot = "head" | "body" | "hands";
 
 /** GDD §5.4 crafting stations. Phase 1 only uses HAND. */
 export enum CraftingStation {
@@ -70,8 +74,10 @@ export interface ItemDef {
   materialCategory?: MaterialCategory; // present when category === Material
   quality: QualityEnum;
   use?: UseAction; // present when the item is usable from the hotbar
-  maxDurability?: number; // present for tools (GDD §10.3)
+  maxDurability?: number; // present for tools/armor (GDD §10.3)
   toolDamage?: number; // melee damage for weapon tools
+  armorSlot?: ArmorSlot; // present for armor (GDD §7.1)
+  armorValue?: number; // incoming-damage reduction fraction (0..1) for armor
 }
 
 /** A recipe ingredient (GDD §5.4). References an item id in the prototype. */
@@ -243,4 +249,6 @@ export interface LoreFragment {
   act: number;
   /** GDD §12: black-box fragments drive the Act-2 story beats + Signal Tracer. */
   blackBox?: boolean;
+  /** GDD §5.1 — a recipe taught by recovering this fragment (the non-experiment path). */
+  unlocksRecipeId?: string;
 }

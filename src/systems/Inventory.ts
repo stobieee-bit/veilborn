@@ -109,7 +109,11 @@ export class Inventory {
   /** Usable items (tool/consumable/placeable) claim the first free hotbar slot. */
   private autoAssignHotbar(itemId: string): void {
     const item = getItem(itemId);
-    if (item.category === ItemCategory.Material || item.category === ItemCategory.Augment) {
+    if (
+      item.category === ItemCategory.Material ||
+      item.category === ItemCategory.Augment ||
+      item.category === ItemCategory.Armor
+    ) {
       return;
     }
     if (this.hotbar.includes(itemId)) return;

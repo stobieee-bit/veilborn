@@ -27,6 +27,7 @@ import { AugmentSystem } from "./systems/Augments";
 import { CrashSites } from "./systems/CrashSites";
 import { Narrative } from "./systems/Narrative";
 import { Adaptation } from "./systems/Adaptation";
+import { Equipment } from "./systems/Equipment";
 import { AudioSystem, type MusicState } from "./systems/AudioSystem";
 import { Settings } from "./systems/Settings";
 import { AUGMENT_BY_ID } from "./data/augments";
@@ -102,6 +103,7 @@ export class Game {
   private readonly crashSites = new CrashSites(this.world);
   private readonly narrative = new Narrative();
   private readonly adaptation = new Adaptation();
+  private readonly equipment = new Equipment();
   private readonly settings = new Settings();
   private readonly audio = new AudioSystem();
   private readonly interaction = new Interaction();
@@ -253,6 +255,7 @@ export class Game {
     // Salvage from the crashed pod so the loop is reachable at once.
     this.inventory.add("ash_sediment", 4);
     this.inventory.add("fiber_frond", 3);
+    this.equipment.refresh(this.inventory);
     this.hud.showIntro(false);
     this.input.requestLock();
     this.hud.toast("Salvaged from the pod: 4 Ash-sediment, 3 Fiber-frond");
@@ -298,6 +301,7 @@ export class Game {
       this.equippedItemId = data.equippedItemId;
       this.controller.setEquippedTool(this.equippedItemId);
       this.selectedSlot = data.selectedSlot;
+      this.equipment.refresh(this.inventory); // re-equip best armor from the loaded inventory
 
       this.dayNight.timeOfDay = data.timeOfDay;
       this.buildSystem.load(data.modules);
@@ -869,11 +873,29 @@ export class Game {
       apexAdapted: this.adaptation.apexAdapted,
       passive: this.settings.passive,
       damagePlayer: (amount: number) => {
-        this.stats.damage(amount * this.augments.damageTakenMult() * this.settings.damageMult());
+        this.stats.damage(
+          amount *
+            this.augments.damageTakenMult() *
+            this.equipment.damageMult() *
+            this.settings.damageMult(),
+        );
+        this.wearArmor();
         this.hud.flashDamage();
         this.audio.hurt();
       },
     };
+  }
+
+  /** GDD §7.1/§10.3 — worn armor degrades when it absorbs a hit; broken pieces fall off. */
+  private wearArmor(): void {
+    let broke = false;
+    for (const id of this.equipment.wornIds) {
+      if (this.inventory.damageDurability(id, CONFIG.armor.wearPerHit) === "broke") {
+        this.hud.toast(`${getItem(id).name} destroyed`);
+        broke = true;
+      }
+    }
+    if (broke) this.equipment.refresh(this.inventory);
   }
 
   private collectLore(fragment: LoreFragment): void {
@@ -884,6 +906,11 @@ export class Game {
     this.input.exitLock();
     this.hud.toast(`Lore fragment recovered (${this.lore.foundCount}/${TOTAL_FRAGMENTS})`);
     this.autoSave();
+    // GDD §5.1 — some fragments teach a recipe outright (the non-experiment path).
+    if (fragment.unlocksRecipeId && this.knowledge.learn(fragment.unlocksRecipeId)) {
+      const r = this.crafting.recipes.find((x) => x.id === fragment.unlocksRecipeId);
+      this.hud.toast(`Schematic recovered: ${r ? r.name : "new recipe"}`);
+    }
     if (fragment.blackBox) {
       const prevAct = this.narrative.act;
       this.narrative.blackBoxCount = this.lore.blackBoxFound();
@@ -988,6 +1015,7 @@ export class Game {
       gained.push(getItem(site.augmentItemId).name);
     }
     this.crashSites.recover(site);
+    this.equipment.refresh(this.inventory); // in case salvage included armor
     if (!this.tier2Unlocked) {
       this.tier2Unlocked = true;
       this.hud.toast("Ship Component recovered — Tier-2 fabrication unlocked");
@@ -1128,6 +1156,18 @@ export class Game {
     }
   }
 
+  /** GDD §4.3 — drink unfiltered Veil-rain: hydrates but raises Veil Exposure. */
+  private drinkVeilRain(): void {
+    this.stats.drink(CONFIG.veil.rainDrinkHydration);
+    this.stats.veilExposure = Math.min(
+      CONFIG.veil.max,
+      this.stats.veilExposure + CONFIG.veil.rainDrinkVeil,
+    );
+    this.hud.toast(
+      `Drank Veil-rain — hydration +${CONFIG.veil.rainDrinkHydration}, Veil +${CONFIG.veil.rainDrinkVeil}`,
+    );
+  }
+
   /** GDD §4.3 — cook raw Spore-caps at a fire into the safe, higher-nutrition form. */
   private cookFood(): void {
     const raw = this.inventory.count("spore_cap");
@@ -1180,7 +1220,11 @@ export class Game {
 
   private interact(): void {
     const t = this.interaction.current;
-    if (!t) return;
+    if (!t) {
+      // GDD §4.3 — with no target, drink unfiltered Veil-rain if it's falling.
+      if (this.weather.current === WeatherType.VeilRain) this.drinkVeilRain();
+      return;
+    }
 
     if (t.kind === "module") {
       const kind = t.module.def.interact;
@@ -1310,6 +1354,7 @@ export class Game {
     this.dayNight.timeOfDay = 6.0; // wake at dawn
     this.stats.stamina = 100;
     this.stats.heal(20);
+    this.stats.veilExposure = Math.max(0, this.stats.veilExposure - CONFIG.veil.restReduce); // GDD §4.1
     this.saveGame();
     this.hud.showSaved();
     this.hud.toast("Rested until dawn. Game saved.");
@@ -1367,6 +1412,7 @@ export class Game {
     const result = this.crafting.craft(recipe, this.inventory);
     if (result.ok) {
       this.audio.craft();
+      this.equipment.refresh(this.inventory); // auto-equip if we just crafted better armor
       this.hud.toast(`Crafted ${recipe.name}`);
     } else if (result.reason === "no_space") this.hud.toast("Too heavy to craft that");
     else this.hud.toast("Missing materials");
@@ -1464,8 +1510,13 @@ export class Game {
       veilSense: this.augments.hasVeilSense(),
       veilDanger: this.augments.hasVeilSense() && this.inVeilDangerZone(),
       compass: this.settings.data.compass ? this.headingString() : null,
+      armorReduction: this.equipment.reduction(),
       tracer: this.computeTracer(),
-      prompt: t ? `<span class="key">[E]</span> ${t.verb} ${t.label}` : null,
+      prompt: t
+        ? `<span class="key">[E]</span> ${t.verb} ${t.label}`
+        : !this.buildSystem.active && this.weather.current === WeatherType.VeilRain
+          ? `<span class="key">[E]</span> Drink Veil-rain`
+          : null,
       lookingAtNode: !!t,
       hotbar,
       toolName,

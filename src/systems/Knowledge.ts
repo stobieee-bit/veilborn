@@ -23,6 +23,13 @@ export class Knowledge {
     return this.known.has(id);
   }
 
+  /** GDD §5.1 — directly teach a recipe (e.g. from a recovered lore fragment). */
+  learn(id: string): boolean {
+    if (this.known.has(id)) return false;
+    this.known.add(id);
+    return true;
+  }
+
   serialize(): string[] {
     return [...this.known];
   }

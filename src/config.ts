@@ -104,6 +104,9 @@ export const CONFIG = {
     drifterDrawSpawn: 65, // very high exposure draws Drifters anywhere
     chatterMinSec: 9,
     chatterMaxSec: 20,
+    restReduce: 30, // GDD §4.1 — resting at the pod lowers Veil Exposure
+    rainDrinkHydration: 12, // GDD §4.3 — drinking unfiltered Veil-rain
+    rainDrinkVeil: 5, // ...but it raises Veil Exposure +5
   },
 
   veilSink: {
@@ -172,6 +175,12 @@ export const CONFIG = {
   defense: {
     spikeDamagePerSec: 12, // Perimeter Spike contact damage to nearby fauna
     spikeRadius: 1.8,
+  },
+
+  // --- GDD §7.1 / §8.1 armor & equipment ---
+  armor: {
+    maxReduction: 0.55, // cap on total incoming-damage reduction from worn armor
+    wearPerHit: 1, // armor durability lost per hit taken
   },
 
   // --- Phase 4: tools & scanner ---

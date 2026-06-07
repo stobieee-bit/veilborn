@@ -37,6 +37,7 @@ export interface HudState {
   veilSense: boolean; // A02 augment: show the Veil Exposure readout
   veilDanger: boolean; // A02 augment: standing in a Veil-dense danger zone
   compass: string | null; // GDD §11.3 heading readout when "Compass always on"
+  armorReduction: number; // GDD §7.1 worn-armor damage reduction (0 = none)
   minimalHud: boolean; // GDD §13.2 conditional visibility (off = always show)
   tracer: { bearing: number; dist: number; label: string } | null;
   prompt: string | null;
@@ -56,6 +57,7 @@ export class HUD {
   private readonly clockEl: HTMLDivElement;
   private readonly clockPhase: HTMLSpanElement;
   private readonly compassEl: HTMLDivElement;
+  private readonly armorEl: HTMLDivElement;
   private readonly promptEl: HTMLDivElement;
   private readonly toastsEl: HTMLDivElement;
   private readonly hotbarEl: HTMLDivElement;
@@ -177,6 +179,10 @@ export class HUD {
     this.durabilityEl.append(this.durabilityLabel, track);
     root.appendChild(this.durabilityEl);
 
+    // Worn-armor readout (bottom-right, only when armor is worn)
+    this.armorEl = el("div", "armor-readout");
+    root.appendChild(this.armorEl);
+
     this.saveIndicator = el("div", "save-indicator");
     this.saveIndicator.textContent = "✓ Saved";
     root.appendChild(this.saveIndicator);
@@ -275,6 +281,13 @@ export class HUD {
       this.durabilityFill.classList.toggle("low", s.toolDurability < 0.25);
     } else {
       this.durabilityEl.classList.remove("show");
+    }
+
+    if (s.armorReduction > 0) {
+      this.armorEl.textContent = `🛡 ARMOR ${Math.round(s.armorReduction * 100)}%`;
+      this.armorEl.classList.add("show");
+    } else {
+      this.armorEl.classList.remove("show");
     }
 
     this.renderHotbar(s.hotbar);

@@ -238,6 +238,7 @@ These are deliberate simplifications, flagged in-code, to be revisited later:
 - **Lore reader is a single-fragment popup** on pickup; the full Survey-Log archive/reader is Phase 9. All 47 fragments exist as a target count; 15 are placed now.
 - **The Topographic Mapper is passive** — owning it (not equipping) enables the minimap. Other navigation tools (full scanner POI markers, signal tracer) are later tiers.
 - **Tier-2 unlock is a one-way flag** set when any Ship Component is first recovered (not by holding the item), so spending the component doesn't relock the tier.
+- **Armor auto-equips the best piece per slot** rather than via a manual loadout screen — a deliberate prototype simplification of the GDD's `EquipmentSlots`. The worn set is derived from inventory, so it needs no separate save state and always reflects your best gear. (Offhand armor is out of scope; the held tool is the only "hand" item.)
 - **Power is gated only for the Phase-6 modules** (Medical Station, Condenser); the Fabricator stays power-free to preserve Phase-4 behaviour. Deep Lung (A05) is installable but inert until the Phase-8 oxygen system.
 - **Veil Episode auto-purges to 60** unless you *hold F to embrace* (Ending B, Phase 10). The Veil hallucination radio chatter is delivered as on-screen subtitles (Phase 11 audio adds the adaptive *episode* music layer); the subtitle toast can be turned off in Settings.
 - **Audio is fully procedural** (Phase 11) — music and SFX are synthesised with the Web Audio API (oscillators / filtered noise), so there are no sample assets to ship. The context unlocks on the first user gesture per browser autoplay rules.
@@ -272,6 +273,15 @@ A follow-up GDD read-through closed these:
 - **Base defense modules** (GDD §6.2 Defense) — **Light Post** (base lighting) and **Perimeter Spike** (chips nearby non-apex fauna) are buildable.
 - **Torch** (GDD §10.1) — a Bioluminite-crafted equippable light source (doubles as a weak bludgeon).
 - **Cooking + ration packs** (GDD §4.3) — interact with a **Fire Pit** to cook raw Spore-caps into the safe, higher-nutrition Cooked Spore-cap; **Ration Packs** are salvageable from crash sites.
+
+### Armor & equipment + final conformance
+
+A second discrepancy pass added the one genuinely missing *layer* plus several small spec items:
+
+- **Armor / equipment** (GDD §7.1, §5.2, §8.1) — a worn-armor system across head / body / hands with incoming-damage reduction (capped), durability that degrades when hit (broken pieces fall off), and a HUD readout. Craftable pieces span the tiers: **Hide Vest** (T1) → **Alloy Helm / Reinforced Gauntlets / Composite Vest** (T2) → **Veil-forged Cuirass** (T3). To avoid an extra loadout UI, each slot **auto-equips the best unbroken piece you carry** (so the worn set is derived from inventory and needs no separate save state).
+- **Rest reduces Veil Exposure** (GDD §4.1) — sleeping at the pod now lowers exposure (−30) alongside restoring stamina/health.
+- **Veil-rain is drinkable** (GDD §4.3) — with no interaction target while Veil-rain falls, press `E` to drink: hydration up, Veil Exposure +5 (prompted on the HUD).
+- **Recipes can be taught by lore** (GDD §5.1) — recovering certain fragments learns a recipe outright (the non-experimentation path): e.g. the Ration Manifest teaches the Hide Vest, Yena's Inventory teaches the Composite Vest.
 
 ### Known gaps still out of scope
 
