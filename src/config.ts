@@ -205,6 +205,8 @@ export const CONFIG = {
     bloomThreshold: 0.8, // only pixels brighter than this bloom (keeps the sky clean)
     vignetteStrength: 0.4, // max multiplicative darkening at the corners (0 = off)
     vignetteRadius: 0.7, // distance (0 centre .. 1 corner) where darkening starts
+    gradeContrast: 1.06, // final colour grade — subtle contrast
+    gradeSaturation: 1.12, // ...and a gentle saturation lift
   },
 
   // --- Game feel (camera shake / impact juice) ---

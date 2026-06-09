@@ -75,6 +75,8 @@ export class World {
 
   private readonly colliders: Collider[] = [];
   private readonly crystalMaterial: THREE.MeshStandardMaterial;
+  private readonly veilTime = { value: 0 }; // shared uTime uniform for Veil-matter flow
+  readonly starfield: THREE.Points; // bioluminescent night sky (fades in after dark)
   private readonly shelterGroup = new THREE.Group();
   private baseProvider: BaseProvider | null = null;
 
@@ -107,6 +109,10 @@ export class World {
       metalness: 0.1,
       flatShading: true,
     });
+    this.patchVeilMaterial(this.crystalMaterial); // animated flow + rim glow
+
+    this.starfield = this.buildStarfield(size);
+    this.scene.add(this.starfield);
 
     this.buildTerrain();
     this.buildRockScatter();
@@ -155,6 +161,65 @@ export class World {
   setVeilGlow(intensity: number): void {
     this.crystalMaterial.emissiveIntensity = intensity * 1.6;
     for (const l of this.veilLights) l.intensity = intensity * 6;
+    (this.starfield.material as THREE.PointsMaterial).opacity = intensity * 0.95;
+    this.starfield.visible = intensity > 0.02;
+  }
+
+  /** Advance the Veil-matter flow animation (called each frame with dt). */
+  advanceVeilTime(dt: number): void {
+    this.veilTime.value += dt;
+  }
+
+  /**
+   * Visual pass — give a Veil-matter material a living look: a slow emissive
+   * pulse plus a fresnel rim glow, injected into MeshStandardMaterial so it keeps
+   * lighting + instancing. Driven by the shared {@link veilTime} uniform.
+   */
+  private patchVeilMaterial(mat: THREE.MeshStandardMaterial): void {
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = this.veilTime;
+      shader.fragmentShader =
+        "uniform float uTime;\n" +
+        shader.fragmentShader.replace(
+          "#include <emissivemap_fragment>",
+          `#include <emissivemap_fragment>
+           float vPulse = 0.72 + 0.28 * sin(uTime * 1.5 + vViewPosition.y * 0.25 + vViewPosition.x * 0.17);
+           float vFres = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0), 2.5);
+           totalEmissiveRadiance *= vPulse;
+           totalEmissiveRadiance += emissive * vFres * 1.4;`,
+        );
+    };
+    mat.needsUpdate = true;
+  }
+
+  /** Build the night starfield (upper-hemisphere points; opacity set by setVeilGlow). */
+  private buildStarfield(size: number): THREE.Points {
+    const count = 1500;
+    const pos = new Float32Array(count * 3);
+    const r = size * 0.85;
+    for (let i = 0; i < count; i++) {
+      const cphi = Math.random(); // cos(phi) ∈ [0,1] → upper hemisphere only
+      const sphi = Math.sqrt(1 - cphi * cphi);
+      const theta = Math.random() * Math.PI * 2;
+      pos[i * 3] = r * sphi * Math.cos(theta);
+      pos[i * 3 + 1] = r * cphi;
+      pos[i * 3 + 2] = r * sphi * Math.sin(theta);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0xcfe6ff,
+      size: 1.6,
+      sizeAttenuation: false,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      fog: false,
+    });
+    const points = new THREE.Points(geo, mat);
+    points.frustumCulled = false;
+    points.visible = false;
+    return points;
   }
 
   /**
@@ -407,6 +472,7 @@ export class World {
       roughness: 0.4,
       flatShading: true,
     });
+    this.patchVeilMaterial(mat); // flowing pulse + rim glow on the Sink pods too
     const dummy = new THREE.Object3D();
     const pods: { x: number; z: number; s: number }[] = [];
     for (let gx = cx - outer; gx <= cx + outer; gx += spacing) {

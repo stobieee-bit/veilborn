@@ -88,6 +88,7 @@ export class DayNightCycle {
     this.cHemiSky.copy(this.cBottom);
     this.world.hemi.color.copy(this.cHemiSky);
     this.world.sky.mesh.position.copy(cameraPos);
+    this.world.starfield.position.copy(cameraPos);
 
     // --- Fog tracks the horizon color and thickens at night ---
     this.cFog.copy(this.cBottom);
@@ -98,7 +99,8 @@ export class DayNightCycle {
       1 - daylight,
     );
 
-    // --- Veil-matter glow ---
+    // --- Veil-matter glow + flow animation ---
     this.world.setVeilGlow(clamp01(1 - daylight * 1.35));
+    this.world.advanceVeilTime(dt);
   }
 }

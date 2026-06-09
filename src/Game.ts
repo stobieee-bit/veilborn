@@ -98,6 +98,36 @@ const VIGNETTE_SHADER = {
     }`,
 };
 
+/** Final colour grade (display space): subtle contrast, saturation, and a warm tint. */
+const GRADE_SHADER = {
+  uniforms: {
+    tDiffuse: { value: null },
+    contrast: { value: 1.06 },
+    saturation: { value: 1.12 },
+    tint: { value: new THREE.Color(1.0, 0.99, 0.96) },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float contrast;
+    uniform float saturation;
+    uniform vec3 tint;
+    varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      vec3 col = (c.rgb - 0.5) * contrast + 0.5;
+      float l = dot(col, vec3(0.299, 0.587, 0.114));
+      col = mix(vec3(l), col, saturation);
+      col *= tint;
+      gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a);
+    }`,
+};
+
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -214,6 +244,10 @@ export class Game {
       vignette.uniforms.radius.value = fx.vignetteRadius;
       this.composer.addPass(vignette);
       this.composer.addPass(new OutputPass());
+      const grade = new ShaderPass(GRADE_SHADER);
+      grade.uniforms.contrast.value = fx.gradeContrast;
+      grade.uniforms.saturation.value = fx.gradeSaturation;
+      this.composer.addPass(grade);
     } catch (e) {
       console.error("[Veilborn] post-processing init failed; using direct render", e);
       this.composer = null;
