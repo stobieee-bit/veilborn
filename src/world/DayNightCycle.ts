@@ -74,8 +74,10 @@ export class DayNightCycle {
     this.world.sun.color.copy(this.cSun);
 
     // --- Ambient / hemisphere (keep a Veil-lit floor at night) ---
-    this.world.hemi.intensity = lerp(0.14, 0.7, daylight);
-    this.world.ambient.intensity = lerp(0.16, 0.3, daylight);
+    // Night keeps a navigable floor (raised in the visual pass) while staying
+    // dark enough that the Veil-matter glow reads as the dominant light (GDD §2).
+    this.world.hemi.intensity = lerp(0.24, 0.7, daylight);
+    this.world.ambient.intensity = lerp(0.26, 0.3, daylight);
 
     // --- Sky gradient ---
     this.cTop.copy(this.nightTop).lerp(this.dayTop, daylight);

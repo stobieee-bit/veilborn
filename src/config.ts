@@ -203,8 +203,8 @@ export const CONFIG = {
     bloomStrength: 0.6, // glow intensity on bright/emissive areas (Veil-matter)
     bloomRadius: 0.5,
     bloomThreshold: 0.8, // only pixels brighter than this bloom (keeps the sky clean)
-    vignetteOffset: 0.95,
-    vignetteDarkness: 1.1,
+    vignetteStrength: 0.4, // max multiplicative darkening at the corners (0 = off)
+    vignetteRadius: 0.7, // distance (0 centre .. 1 corner) where darkening starts
   },
 
   // --- Game feel (camera shake / impact juice) ---

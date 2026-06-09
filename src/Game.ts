@@ -4,7 +4,6 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { VignetteShader } from "three/examples/jsm/shaders/VignetteShader.js";
 import { CONFIG } from "./config";
 import {
   Biome,
@@ -67,6 +66,37 @@ type GameState = "intro" | "playing" | "dead" | "ending";
 
 /** Shared geometry for impact sparks (one instance, reused by every particle). */
 const IMPACT_GEO = new THREE.OctahedronGeometry(0.09, 0);
+
+/**
+ * Multiplicative vignette — darkens the corners RELATIVE to the scene (so dark
+ * night scenes stay proportional instead of being crushed to pure black, which
+ * three's stock additive VignetteShader does). Centre is always untouched.
+ */
+const VIGNETTE_SHADER = {
+  uniforms: {
+    tDiffuse: { value: null },
+    strength: { value: 0.4 },
+    radius: { value: 0.7 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float strength;
+    uniform float radius;
+    varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      float dist = length(vUv - 0.5) * 1.41421356;
+      float v = smoothstep(radius, 1.0, dist);
+      c.rgb *= (1.0 - v * strength);
+      gl_FragColor = c;
+    }`,
+};
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -179,9 +209,9 @@ export class Game {
       this.composer.addPass(
         new UnrealBloomPass(sz.clone(), fx.bloomStrength, fx.bloomRadius, fx.bloomThreshold),
       );
-      const vignette = new ShaderPass(VignetteShader);
-      vignette.uniforms.offset.value = fx.vignetteOffset;
-      vignette.uniforms.darkness.value = fx.vignetteDarkness;
+      const vignette = new ShaderPass(VIGNETTE_SHADER);
+      vignette.uniforms.strength.value = fx.vignetteStrength;
+      vignette.uniforms.radius.value = fx.vignetteRadius;
       this.composer.addPass(vignette);
       this.composer.addPass(new OutputPass());
     } catch (e) {
