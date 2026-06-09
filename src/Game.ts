@@ -1,4 +1,10 @@
 import * as THREE from "three";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { VignetteShader } from "three/examples/jsm/shaders/VignetteShader.js";
 import { CONFIG } from "./config";
 import {
   Biome,
@@ -92,6 +98,7 @@ const EPISODE_LINES = [
  */
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
+  private composer: EffectComposer | null = null;
   private readonly world = new World();
   private readonly dayNight = new DayNightCycle(this.world);
   private readonly controller: PlayerController;
@@ -161,6 +168,27 @@ export class Game {
     // Camera must live in the scene graph so its held-tool viewmodel renders.
     this.world.scene.add(this.controller.camera);
 
+    // --- Post-processing: bloom on the Veil-matter glow + a subtle vignette.
+    // OutputPass applies the renderer's ACES tone mapping, so the palette holds. ---
+    try {
+      const sz = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      const fx = CONFIG.postfx;
+      this.composer = new EffectComposer(this.renderer);
+      this.composer.setSize(sz.x, sz.y);
+      this.composer.addPass(new RenderPass(this.world.scene, this.controller.camera));
+      this.composer.addPass(
+        new UnrealBloomPass(sz.clone(), fx.bloomStrength, fx.bloomRadius, fx.bloomThreshold),
+      );
+      const vignette = new ShaderPass(VignetteShader);
+      vignette.uniforms.offset.value = fx.vignetteOffset;
+      vignette.uniforms.darkness.value = fx.vignetteDarkness;
+      this.composer.addPass(vignette);
+      this.composer.addPass(new OutputPass());
+    } catch (e) {
+      console.error("[Veilborn] post-processing init failed; using direct render", e);
+      this.composer = null;
+    }
+
     this.buildSystem = new BuildSystem(this.world, this.inventory);
     this.input = new Input(canvas);
     this.hud = new HUD(uiRoot);
@@ -215,6 +243,10 @@ export class Game {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
       this.controller.camera.aspect = window.innerWidth / window.innerHeight;
       this.controller.camera.updateProjectionMatrix();
+      if (this.composer) {
+        const sz = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+        this.composer.setSize(sz.x, sz.y);
+      }
     });
 
     this.hud.introNewBtn.addEventListener("click", () => { this.audio.ensureStarted(); this.beginRun(); });
@@ -462,7 +494,8 @@ export class Game {
     this.hud.showPause(paused);
 
     this.renderHud();
-    this.renderer.render(this.world.scene, this.controller.camera);
+    if (this.composer) this.composer.render();
+    else this.renderer.render(this.world.scene, this.controller.camera);
     this.input.endFrame();
     requestAnimationFrame((t) => this.loop(t));
   }

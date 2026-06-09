@@ -310,6 +310,13 @@ Combat and movement now carry weight (code-side juice, no art assets):
 - **Camera shake** — a brief, decaying screen-shake on landing a melee hit, taking damage (scaled by amount), a hard landing, and a Bellower's call. Magnitude is clamped so it never gets disorienting.
 - **Hit marker + impact sparks** — the crosshair flashes red and a short burst of sparks pops at the point of a melee hit (a bigger burst on a kill). A blocked strike gives no false confirmation.
 
+### Atmosphere & visuals (in progress)
+
+The "prototype → stunning" visual pass has begun (code-only, no art assets):
+
+- **Post-processing pipeline** (Three.js `EffectComposer`): **bloom** makes the emissive Veil-matter (crystals, fire, the Veil Sink, power cells) glow, a subtle **vignette** frames the view, and an `OutputPass` preserves the ACES-tone-mapped amber palette. All parameters live in `CONFIG.postfx`.
+- Planned next: a signature flowing **Veil-matter shader**, volumetric fog / god-rays, a bioluminescent night + starfield, and colour grading.
+
 ### Known gaps still out of scope
 
 Larger self-contained subsystems left for their own pass (to avoid destabilising the finished build):

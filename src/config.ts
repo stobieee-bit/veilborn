@@ -198,6 +198,15 @@ export const CONFIG = {
     lightDraw: 6,
   },
 
+  // --- Post-processing (atmosphere/visual pass; all tunable) ---
+  postfx: {
+    bloomStrength: 0.6, // glow intensity on bright/emissive areas (Veil-matter)
+    bloomRadius: 0.5,
+    bloomThreshold: 0.8, // only pixels brighter than this bloom (keeps the sky clean)
+    vignetteOffset: 0.95,
+    vignetteDarkness: 1.1,
+  },
+
   // --- Game feel (camera shake / impact juice) ---
   feel: {
     shakeMax: 0.32, // clamp on accumulated camera-shake magnitude (m)
