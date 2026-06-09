@@ -207,6 +207,10 @@ export const CONFIG = {
     vignetteRadius: 0.7, // distance (0 centre .. 1 corner) where darkening starts
     gradeContrast: 1.06, // final colour grade — subtle contrast
     gradeSaturation: 1.12, // ...and a gentle saturation lift
+    godrayExposure: 0.5, // volumetric light-shaft intensity (0 = off)
+    godrayDecay: 0.95, // per-sample falloff along a shaft
+    godrayDensity: 0.8, // how far the shafts reach from the sun
+    godrayWeight: 0.5, // per-sample contribution
   },
 
   // --- Game feel (camera shake / impact juice) ---

@@ -46,6 +46,23 @@ interface Collider {
   r: number;
 }
 
+/** Soft radial gradient texture for the hazy sun disc (god-ray source). */
+function makeSunTexture(): THREE.Texture {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d")!;
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0.0, "rgba(255,250,236,1.0)");
+  g.addColorStop(0.18, "rgba(255,226,170,0.9)");
+  g.addColorStop(0.5, "rgba(255,180,110,0.32)");
+  g.addColorStop(1.0, "rgba(255,150,90,0.0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 /**
  * The Ashfields greybox (GDD B01) — a 1km x 1km handcrafted-feel terrain with
  * instanced rock/crystal scatter, gatherable resource nodes, simple cylinder
@@ -77,6 +94,7 @@ export class World {
   private readonly crystalMaterial: THREE.MeshStandardMaterial;
   private readonly veilTime = { value: 0 }; // shared uTime uniform for Veil-matter flow
   readonly starfield: THREE.Points; // bioluminescent night sky (fades in after dark)
+  readonly sunSprite: THREE.Sprite; // hazy sun disc — the source for god-rays
   private readonly shelterGroup = new THREE.Group();
   private baseProvider: BaseProvider | null = null;
 
@@ -113,6 +131,20 @@ export class World {
 
     this.starfield = this.buildStarfield(size);
     this.scene.add(this.starfield);
+
+    this.sunSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: makeSunTexture(),
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        fog: false,
+      }),
+    );
+    this.sunSprite.scale.setScalar(90);
+    this.scene.add(this.sunSprite);
 
     this.buildTerrain();
     this.buildRockScatter();
@@ -178,15 +210,17 @@ export class World {
   private patchVeilMaterial(mat: THREE.MeshStandardMaterial): void {
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = this.veilTime;
+      // Inject at lights_fragment_begin — by here the shading `normal` and
+      // `vViewPosition` exist and `totalEmissiveRadiance` hasn't been consumed.
       shader.fragmentShader =
         "uniform float uTime;\n" +
         shader.fragmentShader.replace(
-          "#include <emissivemap_fragment>",
-          `#include <emissivemap_fragment>
-           float vPulse = 0.72 + 0.28 * sin(uTime * 1.5 + vViewPosition.y * 0.25 + vViewPosition.x * 0.17);
-           float vFres = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0), 2.5);
+          "#include <lights_fragment_begin>",
+          `float vPulse = 0.72 + 0.28 * sin(uTime * 1.5 + vViewPosition.y * 0.25 + vViewPosition.x * 0.17);
+           float vFres = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.5);
            totalEmissiveRadiance *= vPulse;
-           totalEmissiveRadiance += emissive * vFres * 1.4;`,
+           totalEmissiveRadiance += emissive * vFres * 1.4;
+           #include <lights_fragment_begin>`,
         );
     };
     mat.needsUpdate = true;

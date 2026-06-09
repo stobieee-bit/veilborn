@@ -317,7 +317,8 @@ The "prototype → stunning" visual pass (code-only, no art assets):
 - **Post-processing pipeline** (Three.js `EffectComposer`): **bloom** makes the emissive Veil-matter (crystals, fire, the Veil Sink, power cells) glow, a custom **multiplicative vignette** frames the view without crushing dark scenes, a final **colour grade** (subtle contrast + saturation + warm tint), and an `OutputPass` preserving the ACES amber palette. All tunable in `CONFIG.postfx`.
 - **Signature Veil-matter shader** — the crystals and Sink pods now *breathe*: a slow emissive pulse plus a fresnel rim-glow, injected into the standard material (keeps lighting + instancing) and driven by a shared time uniform.
 - **Bioluminescent night** — a 1,500-point starfield fades in after dark over a lifted night floor, so night reads as glowing darkness rather than a black void.
-- Planned next: volumetric **god-rays / light shafts** and richer atmospheric fog.
+- **Volumetric god-rays** — a hazy sun disc casts screen-space light shafts (radial scattering of the bright sun + bloomed Veil-matter), gated to fade out when the sun is below the horizon or behind the camera.
+- Planned next: richer layered/height fog and water shimmer.
 
 ### Known gaps still out of scope
 

@@ -89,6 +89,9 @@ export class DayNightCycle {
     this.world.hemi.color.copy(this.cHemiSky);
     this.world.sky.mesh.position.copy(cameraPos);
     this.world.starfield.position.copy(cameraPos);
+    // Hazy sun disc rides the sun direction (god-ray source); fades out at night.
+    this.world.sunSprite.position.copy(cameraPos).addScaledVector(this.sunDir, CONFIG.world.size * 0.85);
+    (this.world.sunSprite.material as THREE.SpriteMaterial).opacity = clamp01(daylight * 1.2);
 
     // --- Fog tracks the horizon color and thickens at night ---
     this.cFog.copy(this.cBottom);

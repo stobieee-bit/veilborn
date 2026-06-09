@@ -98,6 +98,55 @@ const VIGNETTE_SHADER = {
     }`,
 };
 
+/**
+ * Volumetric light scattering ("god-rays") — radially smears bright pixels (the
+ * sun disc + bloomed Veil-matter) outward from the sun's screen position into
+ * light shafts. Additive, in linear space; `exposure` is gated to 0 by the Game
+ * when the sun is below the horizon or behind the camera (then it's a no-op).
+ */
+const GODRAYS_SHADER = {
+  uniforms: {
+    tDiffuse: { value: null },
+    lightPos: { value: new THREE.Vector2(0.5, 0.5) },
+    exposure: { value: 0.0 },
+    decay: { value: 0.95 },
+    density: { value: 0.8 },
+    weight: { value: 0.5 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform vec2 lightPos;
+    uniform float exposure;
+    uniform float decay;
+    uniform float density;
+    uniform float weight;
+    varying vec2 vUv;
+    void main() {
+      vec3 base = texture2D(tDiffuse, vUv).rgb;
+      if (exposure <= 0.001) { gl_FragColor = vec4(base, 1.0); return; }
+      const int SAMPLES = 50;
+      vec2 dtc = (vUv - lightPos) * (density / float(SAMPLES));
+      vec2 tc = vUv;
+      float illum = 1.0;
+      vec3 rays = vec3(0.0);
+      for (int i = 0; i < SAMPLES; i++) {
+        tc -= dtc;
+        vec3 s = texture2D(tDiffuse, tc).rgb;
+        float lum = max(max(s.r, s.g), s.b);
+        s *= smoothstep(0.7, 1.1, lum); // only bright pixels cast shafts
+        rays += s * illum * weight;
+        illum *= decay;
+      }
+      gl_FragColor = vec4(base + rays * exposure, 1.0);
+    }`,
+};
+
 /** Final colour grade (display space): subtle contrast, saturation, and a warm tint. */
 const GRADE_SHADER = {
   uniforms: {
@@ -159,6 +208,10 @@ const EPISODE_LINES = [
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
   private composer: EffectComposer | null = null;
+  private godrays: ShaderPass | null = null;
+  private readonly tmpSunDir = new THREE.Vector3();
+  private readonly tmpCamDir = new THREE.Vector3();
+  private readonly tmpSunProj = new THREE.Vector3();
   private readonly world = new World();
   private readonly dayNight = new DayNightCycle(this.world);
   private readonly controller: PlayerController;
@@ -239,6 +292,11 @@ export class Game {
       this.composer.addPass(
         new UnrealBloomPass(sz.clone(), fx.bloomStrength, fx.bloomRadius, fx.bloomThreshold),
       );
+      this.godrays = new ShaderPass(GODRAYS_SHADER);
+      this.godrays.uniforms.decay.value = fx.godrayDecay;
+      this.godrays.uniforms.density.value = fx.godrayDensity;
+      this.godrays.uniforms.weight.value = fx.godrayWeight;
+      this.composer.addPass(this.godrays);
       const vignette = new ShaderPass(VIGNETTE_SHADER);
       vignette.uniforms.strength.value = fx.vignetteStrength;
       vignette.uniforms.radius.value = fx.vignetteRadius;
@@ -558,10 +616,36 @@ export class Game {
     this.hud.showPause(paused);
 
     this.renderHud();
-    if (this.composer) this.composer.render();
-    else this.renderer.render(this.world.scene, this.controller.camera);
+    if (this.composer) {
+      this.updateGodRays();
+      this.composer.render();
+    } else {
+      this.renderer.render(this.world.scene, this.controller.camera);
+    }
     this.input.endFrame();
     requestAnimationFrame((t) => this.loop(t));
+  }
+
+  /** Aim the god-ray shafts at the sun's screen position; disable when it's hidden. */
+  private updateGodRays(): void {
+    if (!this.godrays) return;
+    const cam = this.controller.camera;
+    const sun = this.world.sun;
+    const sd = this.tmpSunDir.copy(sun.position).sub(cam.position).normalize();
+    cam.getWorldDirection(this.tmpCamDir);
+    const facing = sd.dot(this.tmpCamDir); // >0 → sun in front of the camera
+    const day = this.dayNight.daylight;
+    if (facing > 0.15 && day > 0.05) {
+      this.tmpSunProj.copy(sun.position).project(cam);
+      this.godrays.uniforms.lightPos.value.set(
+        this.tmpSunProj.x * 0.5 + 0.5,
+        this.tmpSunProj.y * 0.5 + 0.5,
+      );
+      const fade = Math.min(1, (facing - 0.15) / 0.4);
+      this.godrays.uniforms.exposure.value = CONFIG.postfx.godrayExposure * day * fade;
+    } else {
+      this.godrays.uniforms.exposure.value = 0;
+    }
   }
 
   // --- UI toggles (run whether or not the sim is active) --------------------
