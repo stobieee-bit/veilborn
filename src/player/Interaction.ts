@@ -65,7 +65,9 @@ export class Interaction {
                 ? "Drink"
                 : m.def.interact === "cook"
                   ? "Cook"
-                  : "Open";
+                  : m.def.interact === "refuel"
+                    ? "Refuel"
+                    : "Open";
       this.current = { kind: "module", verb, label: m.def.name, module: m };
     } else if ("fragment" in resolved) {
       this.current = { kind: "lore", verb: "Recover", label: resolved.fragment.title, fragment: resolved.fragment };

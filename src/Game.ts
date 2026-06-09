@@ -402,6 +402,11 @@ export class Game {
         oxygenMax: CONFIG.oxygen.max * this.augments.oxygenMaxMult(),
         decayMult: this.settings.data.decayRate,
       });
+      this.buildSystem.updatePower(
+        dt,
+        this.dayNight.daylight,
+        this.weather.current === WeatherType.IonSurge,
+      );
       this.updateCondensers(dt);
 
       // Spinewoods linger fuels the Spineback ambush trigger (GDD §9.2).
@@ -1293,6 +1298,26 @@ export class Game {
     this.hud.toast(`Cooked ${added} Spore-cap${added === 1 ? "" : "s"}`);
   }
 
+  /** GDD §6.3 — top up a Generator with Bioluminite fuel. */
+  private refuelGenerator(module: PlacedModule): void {
+    const P = CONFIG.power;
+    const have = this.inventory.count("bioluminite");
+    if (have <= 0) {
+      this.hud.toast("Generator needs Bioluminite as fuel");
+      return;
+    }
+    const need = Math.ceil((P.genFuelMax - (module.fuel ?? 0)) / P.genFuelPerUnit);
+    const use = Math.min(have, Math.max(0, need));
+    if (use <= 0) {
+      this.hud.toast("Generator fuel is full");
+      return;
+    }
+    this.inventory.remove("bioluminite", use);
+    module.fuel = Math.min(P.genFuelMax, (module.fuel ?? 0) + use * P.genFuelPerUnit);
+    this.audio.craft();
+    this.hud.toast(`Refuelled generator — ${use} Bioluminite`);
+  }
+
   private drinkCondenser(module: PlacedModule): void {
     const c = CONFIG.condenser;
     if (!module.powered) {
@@ -1319,11 +1344,7 @@ export class Game {
       const res = this.buildSystem.place();
       if (res.ok) {
         this.audio.craft();
-        const msg =
-          res.def.type === ModuleType.PowerNode
-            ? `Power Node online — ${res.poweredCount} module(s) powered`
-            : `Built ${res.def.name}`;
-        this.hud.toast(msg);
+        this.hud.toast(`Built ${res.def.name}`);
         this.autoSave();
         this.tickOnboarding("build");
       } else {
@@ -1348,6 +1369,7 @@ export class Game {
       else if (kind === "medical") this.openMedical(t.module);
       else if (kind === "condenser") this.drinkCondenser(t.module);
       else if (kind === "cook") this.cookFood();
+      else if (kind === "refuel") this.refuelGenerator(t.module);
       return;
     }
 
@@ -1629,6 +1651,12 @@ export class Game {
       veilDanger: this.augments.hasVeilSense() && this.inVeilDangerZone(),
       compass: this.settings.data.compass ? this.headingString() : null,
       armorReduction: this.equipment.reduction(),
+      power: (() => {
+        const gr = this.buildSystem.gridState();
+        return gr.hasInfra
+          ? { status: gr.status, output: gr.output, draw: gr.draw, batteryFrac: gr.batteryFrac }
+          : null;
+      })(),
       onboarding: this.onboarding.active
         ? this.onboarding.steps.map((s) => ({ label: s.label, done: s.done }))
         : null,

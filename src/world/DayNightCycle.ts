@@ -39,6 +39,11 @@ export class DayNightCycle {
     return this.sunElevation < 0;
   }
 
+  /** 0 at deep night → 1 at full day (drives solar-panel output). */
+  get daylight(): number {
+    return clamp01(this.sunElevation * 1.4 + 0.18);
+  }
+
   get clockString(): string {
     const h = Math.floor(this.timeOfDay) % 24;
     const m = Math.floor((this.timeOfDay - Math.floor(this.timeOfDay)) * 60);

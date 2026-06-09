@@ -147,7 +147,8 @@ export const CONFIG = {
     maxClearSec: 80,
     minEventSec: 22,
     maxEventSec: 42,
-    ashstormChance: 0.5, // otherwise Veil-rain
+    ashstormChance: 0.4, // event roll: <0.4 Ashstorm
+    ionSurgeChance: 0.25, // then <0.4+0.25 Ion surge (else Veil-rain) — GDD §2
   },
 
   combat: {
@@ -181,6 +182,20 @@ export const CONFIG = {
   armor: {
     maxReduction: 0.55, // cap on total incoming-damage reduction from worn armor
     wearPerHit: 1, // armor durability lost per hit taken
+  },
+
+  // --- GDD §6.3 power grid (watt budget; solar/battery/generator) ---
+  power: {
+    nodeOutput: 12, // Power Node trickle (relay + small constant baseline)
+    solarOutput: 55, // Solar Panel output at full daylight (scaled by daylight)
+    genOutput: 48, // Generator output while it has fuel
+    genFuelPerSec: 0.7, // fuel units burned per second while running
+    genFuelPerUnit: 20, // fuel gained per Bioluminite when refuelling
+    genFuelMax: 120,
+    batteryCapacity: 2000, // stored charge (W·s) per Veil-cell Battery
+    condenserDraw: 15,
+    medicalDraw: 15,
+    lightDraw: 6,
   },
 
   // --- Game feel (camera shake / impact juice) ---

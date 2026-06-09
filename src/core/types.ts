@@ -130,6 +130,9 @@ export enum ModuleType {
   Condenser = "CONDENSER",
   LightPost = "LIGHT_POST", // GDD §6.2 Defense — base lighting
   PerimeterSpike = "PERIMETER_SPIKE", // GDD §6.2 Defense — damages nearby fauna
+  SolarPanel = "SOLAR_PANEL", // GDD §6.3 power source — day only
+  Battery = "BATTERY", // GDD §6.3 power source — stores charge for night
+  Generator = "GENERATOR", // GDD §6.3 power source — burns fuel
 }
 
 /** How a module snaps to the build grid. */
@@ -139,7 +142,14 @@ export type ModuleSnap = "cell" | "edge" | "roof" | "prop";
 export type ModuleCollision = "none" | "wall" | "door" | "cylinder";
 
 /** What interacting (E) with a placed module does. */
-export type ModuleInteract = "sleep" | "storage" | "fabricator" | "medical" | "condenser" | "cook";
+export type ModuleInteract =
+  | "sleep"
+  | "storage"
+  | "fabricator"
+  | "medical"
+  | "condenser"
+  | "cook"
+  | "refuel";
 
 /** GDD §8.2 augment. The `id` drives its effect in the AugmentSystem. */
 export interface AugmentDef {
@@ -169,6 +179,7 @@ export enum WeatherType {
   Clear = "CLEAR",
   Ashstorm = "ASHSTORM",
   VeilRain = "VEIL_RAIN",
+  IonSurge = "ION_SURGE", // GDD §2/§6.3 — cuts base power for the event
 }
 
 /** GDD §9.3 creature behaviour states. */

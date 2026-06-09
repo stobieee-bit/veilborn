@@ -294,6 +294,15 @@ Now that the demo is public, first-time players get a hand:
 - **Getting-started checklist** — a small first-run HUD guide that ticks off as you gather, craft, eat/drink, and build; shows once, then never again (persisted).
 - **Accidental-exit guard** — during an active run the page prompts before a reload/close (the only reliable catch for browser-reserved keys like Ctrl+W), and the page-cancellable shortcuts (F5, Ctrl+R/S/P) are suppressed while the pointer is locked.
 
+### Power grid (GDD §6.3)
+
+Base power is now a real watt budget, not a binary "node powers everything":
+
+- **Sources** — **Solar Panel** (output scales with daylight, nothing at night), **Veil-cell Battery** (stores daytime surplus, discharges to keep the base running after dark), **Generator** (steady output while it has fuel — refuel with Bioluminite via `E`), and the **Power Node** (a small constant relay). One base-wide grid (prototype simplification).
+- **Consumers** — Condenser, Medical Station, and Light Post draw watts; a consumer only works when the grid is **STABLE** and it's within 5 m of power infrastructure. (The Fabricator stays power-free so crafting never gets blocked.)
+- **Status** — `STABLE / OVERLOADED / OFFLINE`, shown live on the HUD with output/draw and battery charge. Build a solar+battery combo to survive the night, or run a generator.
+- **Ion-surge weather** (the GDD's third event) cuts all base power for its duration — a blackout you ride out.
+
 ### Game feel
 
 Combat and movement now carry weight (code-side juice, no art assets):
@@ -306,7 +315,6 @@ Combat and movement now carry weight (code-side juice, no art assets):
 Larger self-contained subsystems left for their own pass (to avoid destabilising the finished build):
 
 - **Structure integrity / weather degradation + maintenance** (GDD §6.1, §6.4) — the `integrity` field is tracked and saved but never decayed; needs a decay tick + repair loop + UI.
-- **Full power model & Ion-surge blackouts** (GDD §6.3) — the node powers consumers within 5 m unconditionally; solar/battery/generator sources, watt budgets, OVERLOADED/OFFLINE status, and the third weather event are not implemented.
 - **Cultivated crops** (GDD §4.3) and the **Crawler fire-resistance** adaptation branch (GDD §9.4) — both need a growth/timer or damage-type system first.
 - Remaining content roster: other §6.2 modules (motion sensor, research benches, foundation/wall/roof variants), ranged weapons + consumable tools (§10.1).
 - Smaller deltas: day:night runs 50:50 (spec 28:22), carry tops out at 40 kg (spec 45), `craft_time` is instant, the Spineback spawns at ground level rather than from the canopy, the Survey Log lacks dedicated map/recipe/augment tabs, and scanner pings aren't persisted to the Survey Log.

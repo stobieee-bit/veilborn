@@ -653,6 +653,33 @@ body {
 .armor-readout.show {
   opacity: 0.9;
 }
+.power-readout {
+  position: absolute;
+  top: 76px;
+  right: 22px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.power-readout.show {
+  opacity: 0.92;
+}
+.power-readout.stable {
+  color: var(--teal);
+}
+.power-readout.warn {
+  color: var(--amber);
+}
+.power-readout.off {
+  color: #ff6a5a;
+}
 
 /* --- How-to-Play overlay --- */
 .help-panel {

@@ -34,6 +34,15 @@ const PARAMS: Record<WeatherType, WeatherParams | null> = {
     fogAdd: 0.008,
     fogColor: 0x24343a,
   },
+  [WeatherType.IonSurge]: {
+    fall: 6,
+    wind: new THREE.Vector2(0, 0),
+    size: 0.18,
+    color: 0x9ad8ff,
+    opacity: 0.85,
+    fogAdd: 0.012,
+    fogColor: 0x1a2c4a,
+  },
 };
 
 const BOX = 34;
@@ -82,11 +91,16 @@ export class Weather {
   }
 
   get label(): string {
-    return this.current === WeatherType.Ashstorm
-      ? "Ashstorm"
-      : this.current === WeatherType.VeilRain
-        ? "Veil-rain"
-        : "Clear";
+    switch (this.current) {
+      case WeatherType.Ashstorm:
+        return "Ashstorm";
+      case WeatherType.VeilRain:
+        return "Veil-rain";
+      case WeatherType.IonSurge:
+        return "Ion Surge";
+      default:
+        return "Clear";
+    }
   }
 
   /** Force a specific weather (used by save/load or debugging). */
@@ -121,10 +135,13 @@ export class Weather {
 
   private advancePhase(): void {
     if (this.current === WeatherType.Clear) {
+      const roll = Math.random();
       const type =
-        Math.random() < CONFIG.weather.ashstormChance
+        roll < CONFIG.weather.ashstormChance
           ? WeatherType.Ashstorm
-          : WeatherType.VeilRain;
+          : roll < CONFIG.weather.ashstormChance + CONFIG.weather.ionSurgeChance
+            ? WeatherType.IonSurge
+            : WeatherType.VeilRain;
       this.current = type;
       this.phaseDuration = rand(CONFIG.weather.minEventSec, CONFIG.weather.maxEventSec);
     } else {

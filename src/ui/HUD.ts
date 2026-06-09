@@ -38,6 +38,7 @@ export interface HudState {
   veilDanger: boolean; // A02 augment: standing in a Veil-dense danger zone
   compass: string | null; // GDD §11.3 heading readout when "Compass always on"
   armorReduction: number; // GDD §7.1 worn-armor damage reduction (0 = none)
+  power: { status: string; output: number; draw: number; batteryFrac: number } | null; // GDD §6.3 grid
   onboarding: { label: string; done: boolean }[] | null; // first-run getting-started steps
   minimalHud: boolean; // GDD §13.2 conditional visibility (off = always show)
   tracer: { bearing: number; dist: number; label: string } | null;
@@ -59,6 +60,7 @@ export class HUD {
   private readonly clockPhase: HTMLSpanElement;
   private readonly compassEl: HTMLDivElement;
   private readonly armorEl: HTMLDivElement;
+  private readonly powerEl: HTMLDivElement;
   private readonly onboardEl: HTMLDivElement;
   private onboardSig = "";
   private readonly promptEl: HTMLDivElement;
@@ -147,6 +149,8 @@ export class HUD {
     // Weather chip (under the clock) + threat cue (top-center).
     this.weatherEl = el("div", "weather");
     root.appendChild(this.weatherEl);
+    this.powerEl = el("div", "power-readout"); // base power-grid status (top-right)
+    root.appendChild(this.powerEl);
     this.biomeEl = el("div", "biome");
     root.appendChild(this.biomeEl);
     this.veilReadoutEl = el("div", "veil-readout");
@@ -237,6 +241,15 @@ export class HUD {
       this.weatherEl.classList.add("show");
     } else {
       this.weatherEl.classList.remove("show");
+    }
+
+    if (s.power) {
+      const cls = s.power.status === "STABLE" ? "stable" : s.power.status === "OVERLOADED" ? "warn" : "off";
+      this.powerEl.className = `power-readout show ${cls}`;
+      this.powerEl.textContent =
+        `⚡ ${s.power.status} · ${Math.round(s.power.output)}/${Math.round(s.power.draw)}W · 🔋${Math.round(s.power.batteryFrac * 100)}%`;
+    } else {
+      this.powerEl.classList.remove("show");
     }
     this.threatEl.classList.toggle("show", s.threat > 0);
     this.biomeEl.textContent = s.biome;

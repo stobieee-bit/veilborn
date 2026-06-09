@@ -307,6 +307,68 @@ function perimeterSpikeMesh(): THREE.Object3D {
   return g;
 }
 
+function solarPanelMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.0, 6), alloy(0x4a4640, 0.7, 0.3));
+  post.position.y = 0.5;
+  g.add(post);
+  const panel = new THREE.Mesh(
+    new THREE.BoxGeometry(1.6, 0.06, 1.0),
+    new THREE.MeshStandardMaterial({
+      color: 0x10243a,
+      emissive: 0x2a6fae,
+      emissiveIntensity: 0.35,
+      roughness: 0.3,
+      metalness: 0.6,
+    }),
+  );
+  panel.position.set(0, 1.05, 0);
+  panel.rotation.x = -0.5;
+  g.add(panel);
+  return g;
+}
+
+function batteryMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.5), alloy(0x3a4048, 0.6, 0.4));
+  body.position.y = 0.5;
+  g.add(body);
+  const cell = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.7, 0.1),
+    new THREE.MeshStandardMaterial({
+      color: 0x0c2e2a,
+      emissive: 0x3fe6c8,
+      emissiveIntensity: 1.0,
+      roughness: 0.3,
+    }),
+  );
+  cell.position.set(0, 0.55, 0.26);
+  g.add(cell);
+  return g;
+}
+
+function generatorMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.8), alloy(0x4a443a, 0.8, 0.2));
+  body.position.y = 0.4;
+  g.add(body);
+  const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.6, 8), alloy(0x2a2620, 0.9, 0.1));
+  stack.position.set(0.4, 0.95, -0.2);
+  g.add(stack);
+  const vent = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 0.4, 0.04),
+    new THREE.MeshStandardMaterial({
+      color: 0x140d09,
+      emissive: 0xff6a1a,
+      emissiveIntensity: 0.5,
+      roughness: 0.8,
+    }),
+  );
+  vent.position.set(0, 0.4, 0.42);
+  g.add(vent);
+  return g;
+}
+
 export const MODULES: ModuleDef[] = [
   {
     type: ModuleType.Foundation,
@@ -437,6 +499,43 @@ export const MODULES: ModuleDef[] = [
       { itemId: "spine_crystal_shard", quantity: 1 },
     ],
     create: perimeterSpikeMesh,
+  },
+  {
+    type: ModuleType.SolarPanel,
+    name: "Solar Panel",
+    snap: "prop",
+    collision: "cylinder",
+    cost: [
+      { itemId: "ash_sediment", quantity: 3 },
+      { itemId: "spine_crystal_shard", quantity: 2 },
+      { itemId: "ship_alloy_scrap", quantity: 1 },
+    ],
+    create: solarPanelMesh,
+  },
+  {
+    type: ModuleType.Battery,
+    name: "Veil-cell Battery",
+    snap: "prop",
+    collision: "cylinder",
+    cost: [
+      { itemId: "ash_sediment", quantity: 3 },
+      { itemId: "veil_resin", quantity: 2 },
+      { itemId: "spine_crystal_shard", quantity: 1 },
+    ],
+    create: batteryMesh,
+  },
+  {
+    type: ModuleType.Generator,
+    name: "Generator",
+    snap: "prop",
+    collision: "cylinder",
+    interact: "refuel",
+    cost: [
+      { itemId: "ash_sediment", quantity: 4 },
+      { itemId: "ship_alloy_scrap", quantity: 2 },
+      { itemId: "fiber_frond", quantity: 2 },
+    ],
+    create: generatorMesh,
   },
 ];
 

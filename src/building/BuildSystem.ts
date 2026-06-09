@@ -32,6 +32,8 @@ export interface PlacedModule {
   integrity: number;
   storage?: Inventory;
   water?: number; // condenser water charge
+  charge?: number; // Veil-cell Battery stored charge (W·s)
+  fuel?: number; // Generator fuel reserve
 }
 
 /** Serialisable form of a placed module for the save file. */
@@ -45,6 +47,8 @@ export interface ModuleSave {
   integrity: number;
   storage?: { itemId: string; quantity: number }[];
   water?: number;
+  charge?: number;
+  fuel?: number;
 }
 
 interface Segment {
@@ -79,6 +83,13 @@ export class BuildSystem implements BaseProvider {
   private rotationSteps = 0;
   private nextId = 1;
   private poweredCount = 0;
+  private grid: {
+    status: "STABLE" | "OVERLOADED" | "OFFLINE";
+    output: number;
+    draw: number;
+    batteryFrac: number;
+    hasInfra: boolean;
+  } = { status: "OFFLINE", output: 0, draw: 0, batteryFrac: 0, hasInfra: false };
 
   private ghost: THREE.Object3D | null = null;
   private ghostMeshes: THREE.Mesh[] = [];
@@ -289,6 +300,8 @@ export class BuildSystem implements BaseProvider {
       integrity: m.integrity,
       storage: m.storage ? m.storage.stacks.map((s) => ({ ...s })) : undefined,
       water: m.water,
+      charge: m.charge,
+      fuel: m.fuel,
     }));
   }
 
@@ -311,6 +324,8 @@ export class BuildSystem implements BaseProvider {
       const last = this.placed[this.placed.length - 1];
       if (typeof s.integrity === "number") last.integrity = s.integrity;
       if (typeof s.water === "number") last.water = s.water;
+      if (typeof s.charge === "number") last.charge = s.charge;
+      if (typeof s.fuel === "number") last.fuel = s.fuel;
     }
     this.recomputeDerived();
   }
@@ -429,6 +444,8 @@ export class BuildSystem implements BaseProvider {
       if (storageStacks) for (const s of storageStacks) module.storage.stacks.push({ ...s });
     }
     if (def.type === ModuleType.Condenser) module.water = 0;
+    if (def.type === ModuleType.Battery) module.charge = 0;
+    if (def.type === ModuleType.Generator) module.fuel = 0;
     object.userData.placedModule = module;
     this.placed.push(module);
   }
@@ -461,7 +478,6 @@ export class BuildSystem implements BaseProvider {
         this.propCylinders.push({ x: m.cx * CELL, z: m.cz * CELL, r: 0.6 });
       }
     }
-    this.recomputePower();
     this.structureVersion++;
   }
 
@@ -495,23 +511,153 @@ export class BuildSystem implements BaseProvider {
     ];
   }
 
-  private recomputePower(): void {
-    const nodes = this.placed.filter((m) => m.type === ModuleType.PowerNode);
-    const r2 = CONFIG.build.powerRadius * CONFIG.build.powerRadius;
+  /**
+   * GDD §6.3/§6.4 — per-frame power grid. Sources (Power Node trickle, day-only
+   * Solar Panels, fuel-burning Generators, and Battery discharge) supply a watt
+   * budget; consumers (Condenser / Medical Station / Light Post) draw from it.
+   * Surplus charges batteries; a deficit discharges them. A consumer is powered
+   * only when the grid is STABLE, it's within range of power infrastructure, and
+   * there's no Ion-surge blackout. One base-wide grid (prototype simplification).
+   */
+  updatePower(dt: number, daylight: number, blackout: boolean): void {
+    const P = CONFIG.power;
+    let genOut = 0;
+    let draw = 0;
+    let cap = 0;
+    let hasInfra = false;
+    const batteries: PlacedModule[] = [];
+    for (const m of this.placed) {
+      switch (m.type) {
+        case ModuleType.PowerNode:
+          genOut += P.nodeOutput;
+          hasInfra = true;
+          break;
+        case ModuleType.SolarPanel:
+          genOut += P.solarOutput * daylight;
+          hasInfra = true;
+          break;
+        case ModuleType.Generator:
+          hasInfra = true;
+          if ((m.fuel ?? 0) > 0) {
+            genOut += P.genOutput;
+            m.fuel = Math.max(0, (m.fuel ?? 0) - P.genFuelPerSec * dt);
+          }
+          break;
+        case ModuleType.Battery:
+          hasInfra = true;
+          batteries.push(m);
+          cap += P.batteryCapacity;
+          break;
+        case ModuleType.Condenser:
+          draw += P.condenserDraw;
+          hasInfra = true;
+          break;
+        case ModuleType.MedicalStation:
+          draw += P.medicalDraw;
+          hasInfra = true;
+          break;
+        case ModuleType.LightPost:
+          draw += P.lightDraw;
+          hasInfra = true;
+          break;
+      }
+    }
+
+    let status: "STABLE" | "OVERLOADED" | "OFFLINE";
+    if (blackout) {
+      status = "OFFLINE";
+    } else if (genOut >= draw) {
+      status = "STABLE";
+      this.chargeBatteries(batteries, (genOut - draw) * dt, P.batteryCapacity);
+    } else {
+      const need = (draw - genOut) * dt;
+      const drawn = this.dischargeBatteries(batteries, need);
+      status = drawn >= need - 1e-6 ? "STABLE" : "OVERLOADED";
+    }
+
+    const ok = status === "STABLE";
     let count = 0;
     for (const m of this.placed) {
-      if (m.type === ModuleType.PowerNode) {
-        m.powered = true;
-        continue;
+      if (
+        m.type === ModuleType.Condenser ||
+        m.type === ModuleType.MedicalStation ||
+        m.type === ModuleType.LightPost
+      ) {
+        m.powered = ok && this.nearPowerSource(m);
+        if (m.powered) count++;
+        // The Light Post only shines while powered.
+        if (m.type === ModuleType.LightPost) {
+          m.object.traverse((o) => {
+            const l = o as THREE.PointLight;
+            if (l.isLight) l.visible = m.powered;
+          });
+        }
+      } else {
+        m.powered = false;
       }
-      m.powered = nodes.some((n) => {
-        const dx = (m.cx - n.cx) * CELL;
-        const dz = (m.cz - n.cz) * CELL;
-        return dx * dx + dz * dz <= r2;
-      });
-      if (m.powered) count++;
     }
     this.poweredCount = count;
+
+    let charge = 0;
+    for (const b of batteries) charge += b.charge ?? 0;
+    this.grid = {
+      status,
+      output: genOut,
+      draw,
+      batteryFrac: cap > 0 ? charge / cap : 0,
+      hasInfra,
+    };
+  }
+
+  /** Grid status snapshot for the HUD. */
+  gridState(): {
+    status: "STABLE" | "OVERLOADED" | "OFFLINE";
+    output: number;
+    draw: number;
+    batteryFrac: number;
+    hasInfra: boolean;
+  } {
+    return this.grid;
+  }
+
+  private chargeBatteries(bs: PlacedModule[], amount: number, capEach: number): void {
+    for (const b of bs) {
+      if (amount <= 0) break;
+      const room = capEach - (b.charge ?? 0);
+      const add = Math.min(room, amount);
+      b.charge = (b.charge ?? 0) + add;
+      amount -= add;
+    }
+  }
+
+  private dischargeBatteries(bs: PlacedModule[], amount: number): number {
+    let drawn = 0;
+    for (const b of bs) {
+      if (amount <= 0) break;
+      const avail = Math.min(b.charge ?? 0, amount);
+      b.charge = (b.charge ?? 0) - avail;
+      amount -= avail;
+      drawn += avail;
+    }
+    return drawn;
+  }
+
+  /** True if (consumer) m is within power-radius of any power source/relay. */
+  private nearPowerSource(m: PlacedModule): boolean {
+    const r2 = CONFIG.build.powerRadius * CONFIG.build.powerRadius;
+    return this.placed.some((s) => {
+      if (
+        s.type !== ModuleType.PowerNode &&
+        s.type !== ModuleType.SolarPanel &&
+        s.type !== ModuleType.Battery &&
+        s.type !== ModuleType.Generator
+      ) {
+        return false;
+      }
+      const dx = (m.cx - s.cx) * CELL;
+      const dz = (m.cz - s.cz) * CELL;
+      return dx * dx + dz * dz <= r2;
+    });
   }
 
   private foundationAt(cx: number, cz: number): PlacedModule | undefined {
