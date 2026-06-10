@@ -109,6 +109,8 @@ export class BuildSystem implements BaseProvider {
   private readonly fireCache: { x: number; z: number }[] = [];
   // Cached Perimeter Spike positions (base-defense damage check runs every frame).
   private readonly spikeCache: { x: number; z: number }[] = [];
+  // Cached Motion Sensor positions (GDD §6.2 Defense — proximity pings).
+  private readonly sensorCache: { x: number; z: number }[] = [];
   /** Bumped whenever placed modules change, so per-frame callers can cache derived lists. */
   structureVersion = 0;
 
@@ -120,6 +122,11 @@ export class BuildSystem implements BaseProvider {
   /** Cached Perimeter Spike positions, rebuilt only on placement change. */
   get spikePositions(): { x: number; z: number }[] {
     return this.spikeCache;
+  }
+
+  /** Cached Motion Sensor positions, rebuilt only on placement change. */
+  get sensorPositions(): { x: number; z: number }[] {
+    return this.sensorCache;
   }
 
   private readonly ghostValid = new THREE.MeshStandardMaterial({
@@ -487,6 +494,7 @@ export class BuildSystem implements BaseProvider {
     this.surfaceObjects = [this.world.groundMesh];
     this.fireCache.length = 0;
     this.spikeCache.length = 0;
+    this.sensorCache.length = 0;
 
     for (const m of this.placed) {
       if (m.type === ModuleType.FirePit) {
@@ -495,12 +503,15 @@ export class BuildSystem implements BaseProvider {
       if (m.type === ModuleType.PerimeterSpike) {
         this.spikeCache.push({ x: m.object.position.x, z: m.object.position.z });
       }
+      if (m.type === ModuleType.MotionSensor) {
+        this.sensorCache.push({ x: m.object.position.x, z: m.object.position.z });
+      }
       if (m.type === ModuleType.Foundation) {
         this.foundationTops.push({ cx: m.cx, cz: m.cz, topY: m.topY });
         this.surfaceObjects.push(m.object);
-      } else if (m.type === ModuleType.Roof) {
+      } else if (m.type === ModuleType.Roof || m.type === ModuleType.SlopedRoof) {
         this.surfaceObjects.push(m.object);
-      } else if (m.type === ModuleType.Wall) {
+      } else if (m.type === ModuleType.Wall || m.type === ModuleType.WindowPanel) {
         this.wallSegments.push(this.wallSegment(m, 0));
       } else if (m.type === ModuleType.Doorway) {
         this.wallSegments.push(...this.doorSegments(m));
@@ -708,12 +719,19 @@ export class BuildSystem implements BaseProvider {
     return top === -Infinity ? null : top;
   }
   private roofAt(cx: number, cz: number): PlacedModule | undefined {
-    return this.placed.find((m) => m.type === ModuleType.Roof && m.cx === cx && m.cz === cz);
+    return this.placed.find(
+      (m) =>
+        (m.type === ModuleType.Roof || m.type === ModuleType.SlopedRoof) &&
+        m.cx === cx &&
+        m.cz === cz,
+    );
   }
   private wallAt(cx: number, cz: number, side: number): PlacedModule | undefined {
     return this.placed.find(
       (m) =>
-        (m.type === ModuleType.Wall || m.type === ModuleType.Doorway) &&
+        (m.type === ModuleType.Wall ||
+          m.type === ModuleType.Doorway ||
+          m.type === ModuleType.WindowPanel) &&
         m.cx === cx &&
         m.cz === cz &&
         m.side === side,
@@ -788,6 +806,8 @@ function isStructural(type: ModuleType): boolean {
     type === ModuleType.Foundation ||
     type === ModuleType.Wall ||
     type === ModuleType.Doorway ||
-    type === ModuleType.Roof
+    type === ModuleType.Roof ||
+    type === ModuleType.WindowPanel ||
+    type === ModuleType.SlopedRoof
   );
 }

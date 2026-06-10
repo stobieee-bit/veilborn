@@ -39,6 +39,9 @@ export class Creature {
   hasCalled = false;
   phasedOut = false; // untargetable while a phasing creature is faded
   blocking = false; // adapted apex briefly negates melee (GDD §9.4)
+  /** GDD §9.2 Spineback — height above ground while lurking in the canopy;
+   * drops fast the moment the ambush springs. */
+  perch = 0;
   private blockTimer = 0;
 
   private wanderTarget = new THREE.Vector3();
@@ -227,7 +230,11 @@ export class Creature {
     }
 
     if (target && speed > 0) this.moveToward(dt, target, speed);
-    this.pos.y = ctx.world.groundHeight(this.pos.x, this.pos.z) + this.floatHeight;
+    // Canopy ambushers plunge once they leave their lurk (GDD §9.2).
+    if (this.perch > 0 && this.state !== BehaviorState.Patrol && this.state !== BehaviorState.Idle) {
+      this.perch = Math.max(0, this.perch - dt * 16);
+    }
+    this.pos.y = ctx.world.groundHeight(this.pos.x, this.pos.z) + this.floatHeight + this.perch;
     this.mesh.position.copy(this.pos);
     this.animate(dt, speed > 0);
   }

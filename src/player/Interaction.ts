@@ -76,7 +76,9 @@ export class Interaction {
                       ? "Refuel"
                       : m.def.interact === "farm"
                         ? "Tend"
-                        : "Open";
+                        : m.def.interact === "analyze"
+                          ? "Analyze"
+                          : "Open";
       }
       this.current = { kind: "module", verb, label, module: m };
     } else if ("fragment" in resolved) {

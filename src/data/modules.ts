@@ -394,6 +394,100 @@ function planterMesh(): THREE.Object3D {
   return g;
 }
 
+function windowPanelMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const mat = alloy(0x9a9182);
+  // Frame: sill + lintel + jambs around a translucent pane.
+  const sill = new THREE.Mesh(new THREE.BoxGeometry(CELL, 1.0, 0.18), mat);
+  sill.position.y = 0.5;
+  g.add(sill);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(CELL, FLOOR - 2.0, 0.18), mat);
+  lintel.position.y = FLOOR - (FLOOR - 2.0) / 2;
+  g.add(lintel);
+  for (const sx of [-0.85, 0.85]) {
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 0.18), mat);
+    jamb.position.set(sx, 1.5, 0);
+    g.add(jamb);
+  }
+  const pane = new THREE.Mesh(
+    new THREE.BoxGeometry(CELL - 0.6, 1.0, 0.04),
+    new THREE.MeshStandardMaterial({
+      color: 0x2a4a55,
+      transparent: true,
+      opacity: 0.35,
+      roughness: 0.1,
+      metalness: 0.2,
+    }),
+  );
+  pane.position.y = 1.5;
+  g.add(pane);
+  return g;
+}
+
+function slopedRoofMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.16, CELL * 1.12), alloy(0x6f6a5e));
+  slab.rotation.x = -0.42; // pitched panel
+  slab.position.y = 0.3;
+  g.add(slab);
+  return g;
+}
+
+function motionSensorMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.3, 6), alloy(0x44484f, 0.6, 0.5));
+  post.position.y = 0.65;
+  g.add(post);
+  const dish = new THREE.Mesh(
+    new THREE.ConeGeometry(0.22, 0.18, 10, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x102b28,
+      emissive: 0x3fe6c8,
+      emissiveIntensity: 1.1,
+      side: THREE.DoubleSide,
+    }),
+  );
+  dish.rotation.x = Math.PI / 2;
+  dish.position.y = 1.4;
+  g.add(dish);
+  return g;
+}
+
+function analysisBenchMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.8), alloy(0x4a5158, 0.6, 0.4));
+  top.position.y = 0.9;
+  g.add(top);
+  for (const sx of [-0.6, 0.6]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.6), alloy(0x3a4048, 0.7, 0.3));
+    leg.position.set(sx, 0.45, 0);
+    g.add(leg);
+  }
+  const scope = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09, 0.12, 0.5, 8),
+    new THREE.MeshStandardMaterial({
+      color: 0x0c2e2a,
+      emissive: 0x4fe0c0,
+      emissiveIntensity: 1.2,
+      roughness: 0.3,
+    }),
+  );
+  scope.position.set(-0.35, 1.15, 0);
+  scope.rotation.z = 0.4;
+  g.add(scope);
+  const slate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.04, 0.36),
+    new THREE.MeshStandardMaterial({
+      color: 0x10243a,
+      emissive: 0x2a6fae,
+      emissiveIntensity: 0.8,
+    }),
+  );
+  slate.position.set(0.35, 0.96, 0);
+  g.add(slate);
+  return g;
+}
+
 export const MODULES: ModuleDef[] = [
   {
     type: ModuleType.Foundation,
@@ -574,6 +668,52 @@ export const MODULES: ModuleDef[] = [
       { itemId: "veil_resin", quantity: 1 },
     ],
     create: planterMesh,
+  },
+  {
+    type: ModuleType.WindowPanel,
+    name: "Window Panel",
+    snap: "edge",
+    collision: "wall",
+    cost: [
+      { itemId: "ash_sediment", quantity: 2 },
+      { itemId: "spine_crystal_shard", quantity: 1 },
+    ],
+    create: windowPanelMesh,
+  },
+  {
+    type: ModuleType.SlopedRoof,
+    name: "Sloped Roof",
+    snap: "roof",
+    collision: "none",
+    cost: [
+      { itemId: "ash_sediment", quantity: 3 },
+      { itemId: "fiber_frond", quantity: 2 },
+    ],
+    create: slopedRoofMesh,
+  },
+  {
+    type: ModuleType.MotionSensor,
+    name: "Motion Sensor",
+    snap: "prop",
+    collision: "cylinder",
+    cost: [
+      { itemId: "spine_crystal_shard", quantity: 2 },
+      { itemId: "ash_sediment", quantity: 2 },
+    ],
+    create: motionSensorMesh,
+  },
+  {
+    type: ModuleType.AnalysisBench,
+    name: "Analysis Bench",
+    snap: "prop",
+    collision: "cylinder",
+    interact: "analyze",
+    cost: [
+      { itemId: "ship_alloy_scrap", quantity: 2 },
+      { itemId: "spine_crystal_shard", quantity: 2 },
+      { itemId: "fiber_frond", quantity: 2 },
+    ],
+    create: analysisBenchMesh,
   },
 ];
 

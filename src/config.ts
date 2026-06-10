@@ -45,9 +45,10 @@ export const CONFIG = {
   time: {
     // GDD canonical: 28 min day + 22 min night = 3000 s per full cycle.
     // For a demonstrable prototype the cycle is compressed; set to 3000 for
-    // canonical pacing. Day runs roughly hour 6 -> 18, night 18 -> 6.
+    // canonical pacing. Sunrise is 6:00; the day:night RATIO follows the GDD.
     secondsPerFullDay: 240, // PROTOTYPE — full 24h cycle in 4 real minutes
     startHour: 8.0, // begin mid-morning
+    dayFraction: 28 / 50, // GDD §2 — 28 min day : 22 min night
   },
 
   world: {
@@ -58,7 +59,8 @@ export const CONFIG = {
   },
 
   inventory: {
-    maxWeight: 30, // kg — GDD default (upgradeable to 45 later)
+    maxWeight: 30, // kg — GDD §7.1 default
+    packFrameBonus: 5, // Alloy Pack Frame: with Carrier Frame (+10) reaches the 45kg ceiling
     hotbarSlots: 6,
   },
 
@@ -267,6 +269,29 @@ export const CONFIG = {
   lightning: {
     minGapSec: 3,
     maxGapSec: 9,
+  },
+
+  // --- GDD §2 Crust Warrens cave-ins ---
+  caveIn: {
+    minGapSec: 45, // time underground between cave-in events
+    maxGapSec: 90,
+    warnSec: 1.4, // groan/telegraph before the rocks come down
+    damage: 14, // if caught in the burst radius
+    radius: 3.0,
+  },
+
+  // --- GDD §6.2 Motion Sensor ---
+  sensor: {
+    radius: 14, // detection radius around each sensor
+    cooldownSec: 8, // between pings
+  },
+
+  // --- GDD §6.2 Analysis Bench (research) ---
+  analysis: {
+    cost: [
+      { itemId: "veil_resin", quantity: 2 },
+      { itemId: "spine_crystal_shard", quantity: 2 },
+    ],
   },
 
   scan: {

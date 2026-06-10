@@ -142,6 +142,10 @@ export enum ModuleType {
   Battery = "BATTERY", // GDD §6.3 power source — stores charge for night
   Generator = "GENERATOR", // GDD §6.3 power source — burns fuel
   Planter = "PLANTER", // GDD §4.3 cultivated crops — grow safe food at base
+  WindowPanel = "WINDOW_PANEL", // GDD §6.2 Walls — wall variant with a pane
+  SlopedRoof = "SLOPED_ROOF", // GDD §6.2 Roof — sloped panel variant
+  MotionSensor = "MOTION_SENSOR", // GDD §6.2 Defense — pings on nearby fauna
+  AnalysisBench = "ANALYSIS_BENCH", // GDD §6.2 Research — deciphers schematics
 }
 
 /** How a module snaps to the build grid. */
@@ -159,7 +163,8 @@ export type ModuleInteract =
   | "condenser"
   | "cook"
   | "refuel"
-  | "farm";
+  | "farm"
+  | "analyze";
 
 /** GDD §8.2 augment. The `id` drives its effect in the AugmentSystem. */
 export interface AugmentDef {

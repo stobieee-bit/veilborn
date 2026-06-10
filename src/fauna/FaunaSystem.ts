@@ -278,6 +278,8 @@ export class FaunaSystem {
       const oz = center.z + (Math.random() * 2 - 1) * 3;
       const spawn = new THREE.Vector3(ox, this.world.groundHeight(ox, oz), oz);
       const creature = new Creature(def, spawn, center);
+      // GDD §9.2 — Spinebacks lurk up in the crystalline canopy until they spring.
+      if (def.id === "C02") creature.perch = 4.5 + Math.random() * 2;
       this.world.scene.add(creature.mesh);
       this.creatures.push(creature);
     }

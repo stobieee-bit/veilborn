@@ -263,6 +263,9 @@ export class Game {
   private autosaveTimer = 0;
   private lastBiome = "";
   private lightningTimer = 2; // next Ion-surge strike countdown
+  private caveInTimer = 60; // next Warrens cave-in countdown (only ticks underground)
+  private caveInWarn = -1; // >=0 while the roof is groaning (telegraph)
+  private sensorCooldown = 0; // motion-sensor ping cooldown
   /** GDD §11.2 — the last scanner sweep, logged into the Survey Log Tech tab. */
   private lastScan: {
     clock: string;
@@ -631,6 +634,12 @@ export class Game {
       this.fauna.update(dt, this.faunaContext(), this.safeZones());
       this.updateBaseDefense(dt);
       this.updateDeployables(dt);
+      this.updateMotionSensors(dt);
+      this.updateCaveIns(dt);
+      // GDD §7.1 — carry ceiling: Carrier Frame augment + Alloy Pack Frame = 45kg.
+      this.inventory.bonusWeight =
+        this.augments.carryBonus() +
+        (this.inventory.count("alloy_pack_frame") > 0 ? CONFIG.inventory.packFrameBonus : 0);
       this.lore.update(dt);
       this.runDiscovery();
       this.updateChatter(dt);
@@ -1581,7 +1590,9 @@ export class Game {
 
   /** Push augment effects that live outside the per-frame getters. */
   private applyAugmentEffects(): void {
-    this.inventory.bonusWeight = this.augments.carryBonus();
+    this.inventory.bonusWeight =
+      this.augments.carryBonus() +
+      (this.inventory.count("alloy_pack_frame") > 0 ? CONFIG.inventory.packFrameBonus : 0);
   }
 
   private updateCondensers(dt: number): void {
@@ -1701,6 +1712,67 @@ export class Game {
     this.hud.toast(`Cooked ${added} Spore-cap${added === 1 ? "" : "s"}`);
   }
 
+  /** GDD §6.2 Motion Sensor — ping when fauna prowl near a sensor. */
+  private updateMotionSensors(dt: number): void {
+    this.sensorCooldown = Math.max(0, this.sensorCooldown - dt);
+    const sensors = this.buildSystem.sensorPositions;
+    if (sensors.length === 0 || this.sensorCooldown > 0) return;
+    const r2 = CONFIG.sensor.radius ** 2;
+    for (const c of this.fauna.creatures) {
+      if (!c.alive) continue;
+      for (let i = 0; i < sensors.length; i++) {
+        const dx = c.pos.x - sensors[i].x;
+        const dz = c.pos.z - sensors[i].z;
+        if (dx * dx + dz * dz <= r2) {
+          this.sensorCooldown = CONFIG.sensor.cooldownSec;
+          this.audio.scan();
+          this.hud.toast(`⚠ Motion sensor: ${c.def.name} near the base`);
+          return;
+        }
+      }
+    }
+  }
+
+  /** GDD §2 — Crust Warrens cave-ins: a groan, then the roof comes down. */
+  private updateCaveIns(dt: number): void {
+    if (!this.isUnderground()) {
+      this.caveInWarn = -1;
+      return;
+    }
+    if (this.caveInWarn >= 0) {
+      this.caveInWarn -= dt;
+      this.controller.addShake(0.02); // sustained rumble during the telegraph
+      if (this.caveInWarn <= 0) {
+        this.caveInWarn = -1;
+        const p = this.controller.position;
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * 4;
+        const at = this.tmpSunDir.set(p.x + Math.cos(a) * r, p.y + 2.2, p.z + Math.sin(a) * r);
+        this.spawnImpact(at, 0x8a7a64, 14); // rock burst
+        this.audio.thunder();
+        this.controller.addShake(0.18);
+        const d2 = (at.x - p.x) ** 2 + (at.z - p.z) ** 2;
+        if (d2 <= CONFIG.caveIn.radius ** 2) {
+          this.stats.damage(CONFIG.caveIn.damage * this.equipment.damageMult());
+          this.hud.flashDamage();
+          this.audio.hurt();
+          this.hud.toast("Caught in the cave-in!");
+        } else {
+          this.hud.toast("Rock crashes down nearby — the Warrens are unstable");
+        }
+      }
+      return;
+    }
+    this.caveInTimer -= dt;
+    if (this.caveInTimer <= 0) {
+      this.caveInTimer =
+        CONFIG.caveIn.minGapSec + Math.random() * (CONFIG.caveIn.maxGapSec - CONFIG.caveIn.minGapSec);
+      this.caveInWarn = CONFIG.caveIn.warnSec;
+      this.audio.bellow(); // a deep geological groan
+      this.hud.toast("The roof groans above you…");
+    }
+  }
+
   /** Ion-surge lightning: random sky-flash + thunder while the storm rages. */
   private updateLightning(dt: number): void {
     if (this.weather.current !== WeatherType.IonSurge || this.weather.intensity < 0.4) {
@@ -1733,6 +1805,35 @@ export class Game {
     module.integrity = Math.min(100, module.integrity + CONFIG.integrity.repairAmount);
     this.audio.craft();
     this.hud.toast(`${module.def.name} repaired — ${Math.round(module.integrity)}%`);
+  }
+
+  /**
+   * GDD §6.2 Research — the Analysis Bench deciphers one unknown schematic for
+   * a material cost (the non-experimentation, non-lore recipe path).
+   */
+  private analyzeBench(): void {
+    const cost = CONFIG.analysis.cost;
+    const unknown = this.crafting.recipes.filter(
+      (r) =>
+        !this.knowledge.isKnown(r.id) &&
+        (r.tier < 2 || this.tier2Unlocked) &&
+        (r.tier < 3 || this.tier3Unlocked),
+    );
+    if (unknown.length === 0) {
+      this.hud.toast("The bench finds nothing new — every schematic is deciphered");
+      return;
+    }
+    if (!cost.every((c) => this.inventory.has(c.itemId, c.quantity))) {
+      const need = cost.map((c) => `${c.quantity} ${getItem(c.itemId).name}`).join(", ");
+      this.hud.toast(`Analysis needs: ${need}`);
+      return;
+    }
+    for (const c of cost) this.inventory.remove(c.itemId, c.quantity);
+    const recipe = unknown[Math.floor(Math.random() * unknown.length)];
+    this.knowledge.learn(recipe.id);
+    this.audio.scan();
+    this.audio.craft();
+    this.hud.toast(`Schematic deciphered: ${recipe.name}`);
   }
 
   /** GDD §4.3 — plant / tend / harvest the Hydroponic Planter. */
@@ -1847,6 +1948,7 @@ export class Game {
       else if (kind === "cook") this.cookFood();
       else if (kind === "refuel") this.refuelGenerator(t.module);
       else if (kind === "farm") this.farmPlanter(t.module);
+      else if (kind === "analyze") this.analyzeBench();
       else this.repairStructure(t.module); // damaged shell piece (GDD §6.1)
       return;
     }

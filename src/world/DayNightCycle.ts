@@ -51,7 +51,13 @@ export class DayNightCycle {
   }
 
   private get sunElevation(): number {
-    return Math.sin(((this.timeOfDay - 6) / 24) * Math.PI * 2);
+    // GDD §2 — 28 min day : 22 min night. Sunrise at 6:00; the sun's half-sine
+    // is stretched over the day fraction and the night dip over the remainder,
+    // so the pieces join continuously at the horizon.
+    const dayLen = 24 * CONFIG.time.dayFraction;
+    const t = (this.timeOfDay - 6 + 24) % 24; // hours since sunrise
+    if (t < dayLen) return Math.sin((t / dayLen) * Math.PI);
+    return -Math.sin(((t - dayLen) / (24 - dayLen)) * Math.PI);
   }
 
   update(dt: number, cameraPos: THREE.Vector3): void {

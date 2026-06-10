@@ -304,6 +304,22 @@ export const RECIPES: Recipe[] = [
     qualityOutput: QualityEnum.Standard,
   },
 
+  {
+    id: "r_pack_frame",
+    name: "Alloy Pack Frame",
+    tier: 2,
+    outputItemId: "alloy_pack_frame",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "alloy_frame", quantity: 1 },
+      { itemId: "vaelun_hide", quantity: 2 },
+      { itemId: "fiber_frond", quantity: 2 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Refined,
+  },
+
   // --- Armor (GDD §7.1 / §5.2). Some are also taught by lore fragments. ---
   {
     id: "r_hide_vest",

@@ -335,6 +335,17 @@ export const ITEMS: Record<string, ItemDef> = {
     quality: QualityEnum.Standard,
     use: { kind: "decoy" },
   },
+  alloy_pack_frame: {
+    id: "alloy_pack_frame",
+    name: "Alloy Pack Frame",
+    description:
+      "A rigid salvage-alloy carry frame. While carried, +5 kg capacity — with a Carrier Frame augment you reach the full 45 kg. (GDD §7.1)",
+    weight: 1.0,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Refined,
+    use: { kind: "equip" },
+  },
   cultivated_cap: {
     id: "cultivated_cap",
     name: "Cultivated Spore-cap",

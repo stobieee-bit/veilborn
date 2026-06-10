@@ -341,9 +341,16 @@ With every named GDD system in place, development moved to expansion waves that 
 - **Night spore-motes** — bioluminescent particles drift around you after dark.
 - **Ion-surge lightning** — sky-flash, thunder, and a rumble through the camera while the storm blacks out your base.
 
+**Wave 4 — building variety & living-world threats**
+- **Analysis Bench** (§6.2 Research) — feed it Veil-resin + spine-crystal and it deciphers one unknown schematic: a third recipe-discovery path beside experimentation and lore.
+- **Motion Sensor** (§6.2 Defense) — pings with a toast + chirp when fauna prowl within range of your base.
+- **Window Panel + Sloped Roof** (§6.2 wall/roof variants) — both structural (they weather and repair like walls/roofs).
+- **Warrens cave-ins** (§2, B04's missing hazard) — underground, the roof periodically groans (rumble telegraph), then rock comes down: damage if you're caught in the burst.
+- **Canopy Spinebacks** (§9.2 "ambush from tree canopy") — they now lurk perched in the crystalline canopy and plunge the moment the ambush springs.
+- **Canonical 28:22 day:night ratio** (§2) and the **45 kg carry ceiling** (§7.1, Carrier Frame augment + the new craftable Alloy Pack Frame).
+
 ### Known gaps still out of scope
 
-- Smaller deltas: day:night runs 50:50 (spec 28:22), carry tops out at 40 kg (spec 45), `craft_time` is instant, the Spineback spawns at ground level rather than from the canopy, quality tiers don't yet modify stats, and material `properties`/tool `special_property` remain unmodeled.
-- Remaining §6.2 module variants: motion sensor, window panel, ramp, sloped roof, research benches.
+- `craft_time` is instant, quality tiers don't yet modify stats, material `properties`/tool `special_property` remain unmodeled, stealth has no downwind/smell model, and the Ramp module (walkable slopes) is unbuilt.
 
 Natural next steps beyond the prototype: art/audio assets, the canonical 50-minute day (`CONFIG.time.secondsPerFullDay = 3000`), handcrafted biome geometry in place of the circular greybox regions, draw-call batching for the ~370 individual prop meshes, and multi-slot saves.
