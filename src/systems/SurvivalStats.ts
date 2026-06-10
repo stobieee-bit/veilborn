@@ -17,6 +17,9 @@ export interface StatTickInput {
   oxygenMax: number;
   /** Hunger/hydration decay multiplier (GDD §16 difficulty slider). */
   decayMult: number;
+  /** GDD §4.2 status-effect decay multipliers (1 = no active effect). */
+  effectHungerMult: number;
+  effectHydrationMult: number;
 }
 
 /**
@@ -90,10 +93,16 @@ export class SurvivalStats {
     const s = CONFIG.stats;
     const w = CONFIG.warmth;
 
-    // Passive hunger / hydration decay (GDD per-minute -> per-second).
-    this.hunger = clamp(this.hunger - (s.hungerDecayPerMin / 60) * input.decayMult * dt, 0, 100);
+    // Passive hunger / hydration decay (GDD per-minute -> per-second),
+    // scaled by difficulty and any active status effects (GDD §4.2).
+    this.hunger = clamp(
+      this.hunger - (s.hungerDecayPerMin / 60) * input.decayMult * input.effectHungerMult * dt,
+      0,
+      100,
+    );
     this.hydration = clamp(
-      this.hydration - (s.hydrationDecayPerMin / 60) * input.decayMult * dt,
+      this.hydration -
+        (s.hydrationDecayPerMin / 60) * input.decayMult * input.effectHydrationMult * dt,
       0,
       100,
     );

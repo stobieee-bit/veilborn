@@ -4,7 +4,8 @@ export default defineConfig({
   base: "./",
   server: {
     host: "127.0.0.1",
-    port: 5173,
+    // Respect an assigned PORT (preview harness) but default to 5173.
+    port: Number(process.env.PORT) || 5173,
     open: false,
   },
   build: {

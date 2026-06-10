@@ -50,6 +50,9 @@ export enum CraftingStation {
   AdvFabricator = "ADV_FABRICATOR",
 }
 
+/** GDD §9.4/§10 — damage modality; the adaptation system keys off "fire". */
+export type DamageType = "physical" | "fire" | "energy";
+
 /** How a usable item affects the player when consumed/activated. */
 export type UseAction =
   | { kind: "eat"; hunger: number }
@@ -57,7 +60,9 @@ export type UseAction =
   | { kind: "heal"; health: number }
   | { kind: "purge"; veil: number } // reduces Veil Exposure
   | { kind: "equip" } // tools: become the active held tool
-  | { kind: "place"; prop: "shelter" }; // placeables: spawn a world prop
+  | { kind: "place"; prop: "shelter" } // placeables: spawn a world prop
+  | { kind: "flare" } // GDD §10.1 consumable tool — thrown light, repels fauna
+  | { kind: "decoy" }; // GDD §10.1 consumable tool — noise lure, attracts fauna
 
 /**
  * Unified item definition. In the GDD, raw materials and craftables are
@@ -76,6 +81,9 @@ export interface ItemDef {
   use?: UseAction; // present when the item is usable from the hotbar
   maxDurability?: number; // present for tools/armor (GDD §10.3)
   toolDamage?: number; // melee damage for weapon tools
+  damageType?: DamageType; // weapon damage modality (default physical; GDD §9.4)
+  /** GDD §10.1/§10.2 ranged weapon: fires crafted ammo, no infinite ammo. */
+  ranged?: { damage: number; ammoItemId: string; range: number; damageType: DamageType };
   armorSlot?: ArmorSlot; // present for armor (GDD §7.1)
   armorValue?: number; // incoming-damage reduction fraction (0..1) for armor
 }
@@ -133,6 +141,7 @@ export enum ModuleType {
   SolarPanel = "SOLAR_PANEL", // GDD §6.3 power source — day only
   Battery = "BATTERY", // GDD §6.3 power source — stores charge for night
   Generator = "GENERATOR", // GDD §6.3 power source — burns fuel
+  Planter = "PLANTER", // GDD §4.3 cultivated crops — grow safe food at base
 }
 
 /** How a module snaps to the build grid. */
@@ -149,7 +158,8 @@ export type ModuleInteract =
   | "medical"
   | "condenser"
   | "cook"
-  | "refuel";
+  | "refuel"
+  | "farm";
 
 /** GDD §8.2 augment. The `id` drives its effect in the AugmentSystem. */
 export interface AugmentDef {

@@ -34,7 +34,8 @@ export interface SaveData {
     asked: string[];
     encountered: string[];
   };
-  adaptation: { apexMeleeHits: number; apexKills: number };
+  adaptation: { apexMeleeHits: number; apexKills: number; crawlerFireKills?: number };
+  effects?: { id: string; remaining: number }[]; // GDD §4.2 active status effects
   modules: ModuleSave[];
   nodes: { id: string; remaining: number }[];
 }

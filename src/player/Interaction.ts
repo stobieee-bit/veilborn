@@ -54,21 +54,31 @@ export class Interaction {
       this.current = { kind: "resource", verb: node.promptVerb, label: node.label, node };
     } else if ("module" in resolved) {
       const m = resolved.module;
-      const verb =
-        m.def.interact === "sleep"
-          ? "Rest & Save"
-          : m.def.interact === "fabricator"
-            ? "Use"
-            : m.def.interact === "medical"
-              ? "Augments"
-              : m.def.interact === "condenser"
-                ? "Drink"
-                : m.def.interact === "cook"
-                  ? "Cook"
-                  : m.def.interact === "refuel"
-                    ? "Refuel"
-                    : "Open";
-      this.current = { kind: "module", verb, label: m.def.name, module: m };
+      let verb: string;
+      let label = m.def.name;
+      if (!m.def.interact) {
+        // A damaged shell piece — the only reason it's interactable (GDD §6.1).
+        verb = "Repair";
+        label = `${m.def.name} (${Math.round(m.integrity)}%)`;
+      } else {
+        verb =
+          m.def.interact === "sleep"
+            ? "Rest & Save"
+            : m.def.interact === "fabricator"
+              ? "Use"
+              : m.def.interact === "medical"
+                ? "Augments"
+                : m.def.interact === "condenser"
+                  ? "Drink"
+                  : m.def.interact === "cook"
+                    ? "Cook"
+                    : m.def.interact === "refuel"
+                      ? "Refuel"
+                      : m.def.interact === "farm"
+                        ? "Tend"
+                        : "Open";
+      }
+      this.current = { kind: "module", verb, label, module: m };
     } else if ("fragment" in resolved) {
       this.current = { kind: "lore", verb: "Recover", label: resolved.fragment.title, fragment: resolved.fragment };
     } else if ("site" in resolved) {

@@ -320,13 +320,30 @@ The "prototype → stunning" visual pass (code-only, no art assets):
 - **Volumetric god-rays** — a hazy sun disc casts screen-space light shafts (radial scattering of the bright sun + bloomed Veil-matter), gated to fade out when the sun is below the horizon or behind the camera.
 - Planned next: richer layered/height fog and water shimmer.
 
+### Expansion waves (post-1.0 iteration)
+
+With every named GDD system in place, development moved to expansion waves that deepen each system:
+
+**Wave 1 — combat & systems depth**
+- **Damage types** (physical / fire / energy). The **Torch** is now a true fire weapon — and killing 3+ Crawlers with fire triggers the GDD §9.4 **fire-resistance adaptation** (+60% resist, persisted; physical damage unaffected). Both adaptation branches now live.
+- **Arc Pistol** (GDD §10.1 ranged) — a Tier-2 sidearm firing crafted **Arc Cells** (no infinite ammo, §10.2), with barrel wear at the GDD's −0.1/shot, recoil, energy impact FX, and an ammo readout on the HUD.
+- **Consumable tools** (§10.1) — the **Flare** (thrown light that native fauna refuse to approach) and the **Decoy Canister** (fauna investigate the noise instead of you). Apex predators are too cunning for both.
+- **Status-effect framework** (§4.2) — timed effects with health ticks and stat-decay modifiers, shown as HUD chips and persisted in the save. Gut-rot is now a real 14-second affliction instead of an instant penalty.
+
+**Wave 2 — base & survival depth**
+- **Structure integrity** (§6.1/§6.4) — Ashstorms (and Ion-surge arcing) wear down foundations/walls/doorways/roofs; damaged pieces show a **Repair** prompt (`E`, costs Ash-sediment), and at 0 integrity they **collapse**.
+- **Hydroponic Planter** (§4.3 cultivated crops) — plant a raw Spore-cap, let it grow, harvest **Cultivated Spore-caps** (higher nutrition, never Gut-rot).
+- **Survey Log: Map + Tech tabs** (§13.3) — a full-size explored-world map, plus known recipes with ingredients, the augment loadout, and the **last scanner sweep logged** (§11.2 "scanner data saves to the Survey Log").
+
+**Wave 3 — world & atmosphere density**
+- **Colony outposts** (§11.1) — two salvageable supply caches (rations, arc cells, flares) join the three crash sites.
+- **Alien ruins** (§11.1) — three monolith circles left by the first people, their rune bands breathing with the living Veil-matter shader.
+- **Night spore-motes** — bioluminescent particles drift around you after dark.
+- **Ion-surge lightning** — sky-flash, thunder, and a rumble through the camera while the storm blacks out your base.
+
 ### Known gaps still out of scope
 
-Larger self-contained subsystems left for their own pass (to avoid destabilising the finished build):
-
-- **Structure integrity / weather degradation + maintenance** (GDD §6.1, §6.4) — the `integrity` field is tracked and saved but never decayed; needs a decay tick + repair loop + UI.
-- **Cultivated crops** (GDD §4.3) and the **Crawler fire-resistance** adaptation branch (GDD §9.4) — both need a growth/timer or damage-type system first.
-- Remaining content roster: other §6.2 modules (motion sensor, research benches, foundation/wall/roof variants), ranged weapons + consumable tools (§10.1).
-- Smaller deltas: day:night runs 50:50 (spec 28:22), carry tops out at 40 kg (spec 45), `craft_time` is instant, the Spineback spawns at ground level rather than from the canopy, the Survey Log lacks dedicated map/recipe/augment tabs, and scanner pings aren't persisted to the Survey Log.
+- Smaller deltas: day:night runs 50:50 (spec 28:22), carry tops out at 40 kg (spec 45), `craft_time` is instant, the Spineback spawns at ground level rather than from the canopy, quality tiers don't yet modify stats, and material `properties`/tool `special_property` remain unmodeled.
+- Remaining §6.2 module variants: motion sensor, window panel, ramp, sloped roof, research benches.
 
 Natural next steps beyond the prototype: art/audio assets, the canonical 50-minute day (`CONFIG.time.secondsPerFullDay = 3000`), handcrafted biome geometry in place of the circular greybox regions, draw-call batching for the ~370 individual prop meshes, and multi-slot saves.

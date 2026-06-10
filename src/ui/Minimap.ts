@@ -67,6 +67,41 @@ export class Minimap {
     ctx.fill();
   }
 
+  /** Draw the explored world onto an arbitrary canvas (Survey-Log Map tab). */
+  renderLarge(canvas: HTMLCanvasElement, map: MapSystem, px: number, pz: number, yaw: number): void {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const size = canvas.width;
+    const grid = map.grid;
+    const cellPx = size / grid;
+    const half = map.worldSize / 2;
+    if (!this.biomeColors) this.cacheBiomeColors(map);
+    const colors = this.biomeColors!;
+
+    ctx.fillStyle = "#0a0c10";
+    ctx.fillRect(0, 0, size, size);
+    for (let gz = 0; gz < grid; gz++) {
+      for (let gx = 0; gx < grid; gx++) {
+        if (!map.isExplored(gx, gz)) continue;
+        ctx.fillStyle = colors[gz * grid + gx];
+        ctx.fillRect(gx * cellPx, gz * cellPx, cellPx + 0.5, cellPx + 0.5);
+      }
+    }
+    // Player marker + heading.
+    const mx = ((px + half) / map.worldSize) * size;
+    const mz = ((pz + half) / map.worldSize) * size;
+    ctx.strokeStyle = "#3fe6c8";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(mx, mz);
+    ctx.lineTo(mx - Math.sin(yaw) * 14, mz - Math.cos(yaw) * 14);
+    ctx.stroke();
+    ctx.fillStyle = "#3fe6c8";
+    ctx.beginPath();
+    ctx.arc(mx, mz, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   private cacheBiomeColors(map: MapSystem): void {
     const grid = map.grid;
     const half = map.worldSize / 2;

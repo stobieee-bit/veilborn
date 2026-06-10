@@ -16,6 +16,10 @@ export interface CreatureContext {
   apexAdapted: boolean;
   /** GDD §16 — Passive difficulty: creatures never hunt the player. */
   passive: boolean;
+  /** GDD §10.1 — active decoy canister position (fauna investigate it). */
+  lure?: THREE.Vector3 | null;
+  /** GDD §10.1 — active flare position (fauna refuse to approach it). */
+  repel?: THREE.Vector3 | null;
 }
 
 const tmp = new THREE.Vector3();
@@ -137,6 +141,38 @@ export class Creature {
 
     let target: THREE.Vector3 | null = null;
     let speed = 0;
+
+    // GDD §10.1 gadgets — flares repel, decoys lure. Apex are too cunning for both.
+    if (!this.def.isApex) {
+      if (ctx.repel) {
+        const dr = Math.hypot(ctx.repel.x - this.pos.x, ctx.repel.z - this.pos.z);
+        if (dr < CONFIG.gadgets.flareRepelRadius) {
+          tmp.set(this.pos.x * 2 - ctx.repel.x, 0, this.pos.z * 2 - ctx.repel.z);
+          this.moveToward(dt, tmp, this.def.fleeSpeed || this.def.chaseSpeed);
+          this.state = BehaviorState.Patrol; // light breaks the hunt
+          this.pos.y = ctx.world.groundHeight(this.pos.x, this.pos.z) + this.floatHeight;
+          this.mesh.position.copy(this.pos);
+          this.animate(dt, true);
+          return;
+        }
+      }
+      if (ctx.lure) {
+        const dl = Math.hypot(ctx.lure.x - this.pos.x, ctx.lure.z - this.pos.z);
+        if (dl < CONFIG.gadgets.decoyLureRadius) {
+          this.state = BehaviorState.Patrol; // the noise wins over the player
+          if (dl > 2.2) {
+            tmp.set(ctx.lure.x, 0, ctx.lure.z);
+            this.moveToward(dt, tmp, this.def.chaseSpeed * 0.85);
+          } else {
+            this.faceTo(ctx.lure as THREE.Vector3);
+          }
+          this.pos.y = ctx.world.groundHeight(this.pos.x, this.pos.z) + this.floatHeight;
+          this.mesh.position.copy(this.pos);
+          this.animate(dt, dl > 2.2);
+          return;
+        }
+      }
+    }
 
     switch (this.state) {
       case BehaviorState.Idle:

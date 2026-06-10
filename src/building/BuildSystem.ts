@@ -34,6 +34,7 @@ export interface PlacedModule {
   water?: number; // condenser water charge
   charge?: number; // Veil-cell Battery stored charge (W·s)
   fuel?: number; // Generator fuel reserve
+  growth?: number; // Planter crop progress in seconds (-1 = nothing planted)
 }
 
 /** Serialisable form of a placed module for the save file. */
@@ -49,6 +50,7 @@ export interface ModuleSave {
   water?: number;
   charge?: number;
   fuel?: number;
+  growth?: number;
 }
 
 interface Segment {
@@ -282,9 +284,34 @@ export class BuildSystem implements BaseProvider {
     return { name: def.name, cost, valid, reason };
   }
 
-  /** Top-level objects the player can interact with (pod / crate). */
+  /** Top-level objects the player can interact with (pod / crate / damaged shell). */
   interactables(): THREE.Object3D[] {
-    return this.placed.filter((m) => m.def.interact).map((m) => m.object);
+    // Damaged structural pieces (no interact of their own) become repairable.
+    return this.placed
+      .filter((m) => m.def.interact || (isStructural(m.type) && m.integrity < 100))
+      .map((m) => m.object);
+  }
+
+  /** GDD §6.1/§6.4 — weather wears structural pieces; at 0 integrity they collapse. */
+  onCollapse: (name: string) => void = () => {};
+  updateIntegrity(dt: number, stormIntensity: number, surgeIntensity: number): void {
+    const perSec =
+      (CONFIG.integrity.stormDamagePerMin / 60) * stormIntensity +
+      (CONFIG.integrity.surgeDamagePerMin / 60) * surgeIntensity;
+    if (perSec <= 0) return;
+    let collapsed = false;
+    for (let i = this.placed.length - 1; i >= 0; i--) {
+      const m = this.placed[i];
+      if (!isStructural(m.type)) continue;
+      m.integrity -= perSec * dt;
+      if (m.integrity <= 0) {
+        this.onCollapse(m.def.name);
+        this.disposeObject(m.object);
+        this.placed.splice(i, 1);
+        collapsed = true;
+      }
+    }
+    if (collapsed) this.recomputeDerived();
   }
 
   // --- save / load ----------------------------------------------------------
@@ -302,6 +329,7 @@ export class BuildSystem implements BaseProvider {
       water: m.water,
       charge: m.charge,
       fuel: m.fuel,
+      growth: m.growth,
     }));
   }
 
@@ -326,6 +354,7 @@ export class BuildSystem implements BaseProvider {
       if (typeof s.water === "number") last.water = s.water;
       if (typeof s.charge === "number") last.charge = s.charge;
       if (typeof s.fuel === "number") last.fuel = s.fuel;
+      if (typeof s.growth === "number") last.growth = s.growth;
     }
     this.recomputeDerived();
   }
@@ -446,6 +475,7 @@ export class BuildSystem implements BaseProvider {
     if (def.type === ModuleType.Condenser) module.water = 0;
     if (def.type === ModuleType.Battery) module.charge = 0;
     if (def.type === ModuleType.Generator) module.fuel = 0;
+    if (def.type === ModuleType.Planter) module.growth = -1; // empty bed
     object.userData.placedModule = module;
     this.placed.push(module);
   }
@@ -750,4 +780,14 @@ export class BuildSystem implements BaseProvider {
 
 function yawForSide(side: number): number {
   return side === 1 || side === 3 ? Math.PI / 2 : 0;
+}
+
+/** Structural shell pieces — the ones weather wears down (GDD §6.1). */
+function isStructural(type: ModuleType): boolean {
+  return (
+    type === ModuleType.Foundation ||
+    type === ModuleType.Wall ||
+    type === ModuleType.Doorway ||
+    type === ModuleType.Roof
+  );
 }

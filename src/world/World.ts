@@ -94,7 +94,9 @@ export class World {
   private readonly crystalMaterial: THREE.MeshStandardMaterial;
   private readonly veilTime = { value: 0 }; // shared uTime uniform for Veil-matter flow
   readonly starfield: THREE.Points; // bioluminescent night sky (fades in after dark)
+  readonly motes: THREE.Points; // drifting spore-motes that glow at night
   readonly sunSprite: THREE.Sprite; // hazy sun disc — the source for god-rays
+  private readonly motePos: Float32Array;
   private readonly shelterGroup = new THREE.Group();
   private baseProvider: BaseProvider | null = null;
 
@@ -132,6 +134,31 @@ export class World {
     this.starfield = this.buildStarfield(size);
     this.scene.add(this.starfield);
 
+    // Bioluminescent spore-motes drifting around the player after dark.
+    const MOTES = 240;
+    this.motePos = new Float32Array(MOTES * 3);
+    for (let i = 0; i < MOTES; i++) {
+      this.motePos[i * 3] = (Math.random() * 2 - 1) * 16;
+      this.motePos[i * 3 + 1] = Math.random() * 12;
+      this.motePos[i * 3 + 2] = (Math.random() * 2 - 1) * 16;
+    }
+    const moteGeo = new THREE.BufferGeometry();
+    moteGeo.setAttribute("position", new THREE.BufferAttribute(this.motePos, 3));
+    this.motes = new THREE.Points(
+      moteGeo,
+      new THREE.PointsMaterial({
+        color: 0x8fe6c8,
+        size: 0.1,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    this.motes.frustumCulled = false;
+    this.motes.visible = false;
+    this.scene.add(this.motes);
+
     this.sunSprite = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: makeSunTexture(),
@@ -153,6 +180,7 @@ export class World {
     this.buildVeilSinkProps();
     this.buildWarrens();
     this.buildCradle();
+    this.buildRuins();
     this.buildResourceNodes();
 
     this.scene.add(this.shelterGroup);
@@ -195,6 +223,23 @@ export class World {
     for (const l of this.veilLights) l.intensity = intensity * 6;
     (this.starfield.material as THREE.PointsMaterial).opacity = intensity * 0.95;
     this.starfield.visible = intensity > 0.02;
+    (this.motes.material as THREE.PointsMaterial).opacity = intensity * 0.55;
+    this.motes.visible = intensity > 0.04;
+  }
+
+  /** Drift the night spore-motes around the camera (cheap, wraps in a box). */
+  updateMotes(dt: number, camPos: THREE.Vector3): void {
+    if (!this.motes.visible) return;
+    this.motes.position.set(camPos.x, 0, camPos.z);
+    const p = this.motePos;
+    for (let i = 0; i < p.length; i += 3) {
+      p[i + 1] += dt * 0.35;
+      p[i] += Math.sin(p[i + 1] * 0.8 + i) * dt * 0.25;
+      if (p[i + 1] > 12) p[i + 1] = 0.2;
+      if (p[i] > 16) p[i] -= 32;
+      else if (p[i] < -16) p[i] += 32;
+    }
+    this.motes.geometry.attributes.position.needsUpdate = true;
   }
 
   /** Advance the Veil-matter flow animation (called each frame with dt). */
@@ -698,6 +743,57 @@ export class World {
       light.visible = false; // culled on until the player nears the Cradle
       this.scene.add(light);
       this.cullableLights.push({ light, x: px, z: pz, onR2: 95 * 95 });
+    }
+  }
+
+  /**
+   * GDD §11.1 "alien ruins" — landmark monolith circles left by the first
+   * people. Pure visual anchors (the lore tells their story); the runes share
+   * the living Veil-matter shader so they breathe at night.
+   */
+  private buildRuins(): void {
+    const runeMat = new THREE.MeshStandardMaterial({
+      color: 0x1c2624,
+      emissive: 0x2fe0c0,
+      emissiveIntensity: 0.7,
+      roughness: 0.6,
+      flatShading: true,
+    });
+    this.patchVeilMaterial(runeMat);
+    const stoneMat = new THREE.MeshStandardMaterial({
+      color: 0x4a4640,
+      roughness: 0.95,
+      flatShading: true,
+    });
+    const sites: { x: number; z: number; n: number }[] = [
+      { x: 60, z: -190, n: 7 }, // Ashfields ring
+      { x: -180, z: 110, n: 5 }, // toward the Veil Sink rim
+      { x: 170, z: 320, n: 6 }, // Spinewoods edge
+    ];
+    for (const s of sites) {
+      for (let i = 0; i < s.n; i++) {
+        const a = (i / s.n) * Math.PI * 2;
+        const r = 7 + hash2(s.x + i, s.z) * 2;
+        const px = s.x + Math.cos(a) * r;
+        const pz = s.z + Math.sin(a) * r;
+        const h = 3 + hash2(px, pz) * 3.5;
+        const mono = new THREE.Mesh(new THREE.BoxGeometry(0.9, h, 0.6), stoneMat);
+        mono.position.set(px, this.groundHeight(px, pz) + h / 2 - 0.3, pz);
+        mono.rotation.y = a + hash2(i, s.x) * 0.6;
+        mono.rotation.z = (hash2(px, i) - 0.5) * 0.16;
+        this.scene.add(mono);
+        this.colliders.push({ x: px, z: pz, r: 0.7 });
+        // A rune band partway up each monolith.
+        const rune = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.3, 0.64), runeMat);
+        rune.position.set(px, this.groundHeight(px, pz) + h * 0.55, pz);
+        rune.rotation.copy(mono.rotation);
+        this.scene.add(rune);
+      }
+      // A fallen centre slab.
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.4, 2.2), stoneMat);
+      slab.position.set(s.x, this.groundHeight(s.x, s.z) + 0.15, s.z);
+      slab.rotation.y = hash2(s.x, s.z) * Math.PI;
+      this.scene.add(slab);
     }
   }
 

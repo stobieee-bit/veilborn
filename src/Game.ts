@@ -20,6 +20,8 @@ import {
   ItemCategory,
   ModuleType,
   WeatherType,
+  type DamageType,
+  type ItemDef,
   type LoreFragment,
 } from "./core/types";
 import { getItem } from "./data/items";
@@ -35,13 +37,14 @@ import { Adaptation } from "./systems/Adaptation";
 import { Equipment } from "./systems/Equipment";
 import { AudioSystem, type MusicState } from "./systems/AudioSystem";
 import { Settings } from "./systems/Settings";
-import { AUGMENT_BY_ID } from "./data/augments";
+import { AUGMENT_BY_ID, AUGMENTS } from "./data/augments";
 import { ARIA_GREETING, ARIA_TOPICS } from "./data/aria";
 import type { CrashSite } from "./data/crashsites";
 import { SurvivalStats } from "./systems/SurvivalStats";
 import { Weather } from "./systems/Weather";
 import { BuildSystem, type PlacedModule } from "./building/BuildSystem";
-import { FaunaSystem, type SafeZone } from "./fauna/FaunaSystem";
+import { FaunaSystem, type MeleeResult, type SafeZone } from "./fauna/FaunaSystem";
+import { Effects } from "./systems/Effects";
 import type { CreatureContext } from "./fauna/Creature";
 import * as SaveSystem from "./systems/SaveSystem";
 import { Input } from "./player/Input";
@@ -229,6 +232,7 @@ export class Game {
   private readonly narrative = new Narrative();
   private readonly adaptation = new Adaptation();
   private readonly equipment = new Equipment();
+  private readonly effects = new Effects();
   private readonly settings = new Settings();
   private readonly audio = new AudioSystem();
   private readonly interaction = new Interaction();
@@ -258,6 +262,15 @@ export class Game {
   private footstepTimer = 0;
   private autosaveTimer = 0;
   private lastBiome = "";
+  private lightningTimer = 2; // next Ion-surge strike countdown
+  /** GDD §11.2 — the last scanner sweep, logged into the Survey Log Tech tab. */
+  private lastScan: {
+    clock: string;
+    biome: string;
+    deposits: number;
+    lore: number;
+    fauna: number;
+  } | null = null;
   private readonly safeZoneCache: SafeZone[] = [];
   private safeZoneVersion = -1;
   private readonly spikeKnock = new THREE.Vector3();
@@ -267,6 +280,14 @@ export class Game {
   private chatterTimer = 12;
   private scanMarkers: { mesh: THREE.Mesh; ttl: number; max: number }[] = [];
   private impacts: { mesh: THREE.Mesh; vel: THREE.Vector3; ttl: number; max: number }[] = [];
+  /** GDD §10.1 deployed gadgets (flares repel fauna; decoys lure them). */
+  private deployables: {
+    kind: "flare" | "decoy";
+    mesh: THREE.Group;
+    light: THREE.PointLight | null;
+    ttl: number;
+    pos: THREE.Vector3;
+  }[] = [];
   private lastTime = 0;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
@@ -339,6 +360,11 @@ export class Game {
       this.audio.bellow();
       this.controller.addShake(CONFIG.feel.bellowShake);
     };
+    this.buildSystem.onCollapse = (name) => {
+      this.hud.toast(`${name} collapses under the storm!`);
+      this.audio.hurt();
+      this.controller.addShake(0.12);
+    };
     this.fauna.onApexMeleeHit = (killed) => {
       const was = this.adaptation.apexAdapted;
       this.adaptation.recordApexMelee(killed);
@@ -410,6 +436,8 @@ export class Game {
     this.crashSites.reset();
     this.narrative.reset();
     this.adaptation.reset();
+    this.effects.reset();
+    this.lastScan = null;
     this.surveyLog.hide();
     this.tier2Unlocked = false;
     this.tier3Unlocked = false;
@@ -467,6 +495,7 @@ export class Game {
       this.crashSites.load(data.crashRecovered ?? []);
       this.narrative.load(data.narrative);
       this.adaptation.load(data.adaptation);
+      this.effects.load(data.effects);
       this.tier2Unlocked = data.tier2 ?? false;
       this.tier3Unlocked = (data.tier3 ?? false) || this.narrative.cradleReached;
       this.applyAugmentEffects();
@@ -546,6 +575,10 @@ export class Game {
       this.applyBiomeFog();
       this.world.updateBiomeLights(pos.x, pos.z);
 
+      // GDD §4.2 — tick status effects; their damage + decay mults feed the sim.
+      const fxAgg = this.effects.update(dt);
+      if (fxAgg.tickDamage > 0) this.stats.damage(fxAgg.tickDamage * dt);
+
       const env = this.computeEnvRates();
       this.stats.update(dt, {
         sprinting: this.controller.isSprinting,
@@ -555,6 +588,8 @@ export class Game {
         underground: this.isUnderground(),
         oxygenMax: CONFIG.oxygen.max * this.augments.oxygenMaxMult(),
         decayMult: this.settings.data.decayRate,
+        effectHungerMult: fxAgg.hungerMult,
+        effectHydrationMult: fxAgg.hydrationMult,
       });
       this.buildSystem.updatePower(
         dt,
@@ -562,6 +597,13 @@ export class Game {
         this.weather.current === WeatherType.IonSurge,
       );
       this.updateCondensers(dt);
+      this.updatePlanters(dt);
+      // GDD §6.1 — storms wear the base shell.
+      this.buildSystem.updateIntegrity(
+        dt,
+        this.weather.current === WeatherType.Ashstorm ? this.weather.intensity : 0,
+        this.weather.current === WeatherType.IonSurge ? this.weather.intensity : 0,
+      );
 
       // Spinewoods linger fuels the Spineback ambush trigger (GDD §9.2).
       if (biomeAt(pos.x, pos.z) === Biome.Spinewoods) this.spineLingerTimer += dt;
@@ -584,14 +626,17 @@ export class Game {
       }
 
       this.fauna.adaptedApex = this.adaptation.apexAdapted;
+      this.fauna.crawlerFireResist = this.adaptation.crawlerFireAdapted;
       this.fauna.apexExhausted = this.adaptation.apexKills >= CONFIG.fauna.maxApexEncounters;
       this.fauna.update(dt, this.faunaContext(), this.safeZones());
       this.updateBaseDefense(dt);
+      this.updateDeployables(dt);
       this.lore.update(dt);
       this.runDiscovery();
       this.updateChatter(dt);
       this.updateNarrative();
       this.updateAudio(dt);
+      this.updateLightning(dt);
       this.autosaveTimer = Math.max(0, this.autosaveTimer - dt);
       if (this.ownsMapper()) this.map.reveal(pos.x, pos.z, 100);
       if (this.stats.isDead) this.die();
@@ -719,7 +764,27 @@ export class Game {
           (t.requiresBlackBox === undefined || this.narrative.blackBoxCount >= t.requiresBlackBox),
         asked: this.narrative.hasAsked(t.id),
       })),
+      recipes: this.crafting.recipes
+        .filter((r) => this.knowledge.isKnown(r.id))
+        .map((r) => ({
+          name: r.name,
+          tier: r.tier,
+          ingredients: r.ingredients
+            .map((i) => `${i.quantity}× ${getItem(i.itemId).name}`)
+            .join(", "),
+        })),
+      augments: AUGMENTS.map((a) => ({
+        name: a.name,
+        installed: this.augments.installedIds.includes(a.id),
+      })),
+      slotsUsed: this.augments.usedSlots(),
+      slotsMax: this.augments.maxSlots,
+      lastScan: this.lastScan,
     });
+    this.surveyLog.onRenderMap = (canvas) => {
+      const p = this.controller.position;
+      this.minimap.renderLarge(canvas, this.map, p.x, p.z, this.controller.forwardYaw);
+    };
   }
 
   private anyMenuOpen(): boolean {
@@ -853,6 +918,11 @@ export class Game {
       this.grapple();
       return;
     }
+    const item = this.equippedItemId ? getItem(this.equippedItemId) : null;
+    if (item?.ranged) {
+      this.fireRanged(item.ranged);
+      return;
+    }
     if (this.swingCooldown > 0) return;
     if (!this.stats.trySpendStamina(CONFIG.combat.swingStaminaCost)) {
       this.swingCooldown = 0.3;
@@ -860,8 +930,8 @@ export class Game {
     }
     this.swingCooldown = CONFIG.combat.swingCooldownSec;
     this.controller.triggerSwing();
-    const item = this.equippedItemId ? getItem(this.equippedItemId) : null;
     const dmg = item?.toolDamage ?? CONFIG.combat.unarmedDamage;
+    const dmgType = item?.damageType ?? "physical";
     const res = this.fauna.meleeHit(
       this.controller.camera.position,
       this.controller.forward(),
@@ -869,6 +939,7 @@ export class Game {
       CONFIG.combat.meleeArcDot,
       dmg,
       CONFIG.combat.knockback,
+      dmgType,
     );
     if (res.hit && !res.blocked) {
       this.audio.hit();
@@ -877,12 +948,7 @@ export class Game {
       if (res.point) this.spawnImpact(res.point, res.killed ? 0xffd9a0 : 0xff7a5a, res.killed ? 12 : 6);
     }
     if (res.killed) {
-      const gained: string[] = [];
-      for (const l of res.loot) {
-        const added = this.inventory.add(l.itemId, l.qty);
-        if (added > 0) gained.push(`${added} ${getItem(l.itemId).name}`);
-      }
-      this.hud.toast(`${res.name} slain${gained.length ? " — +" + gained.join(", ") : ""}`);
+      this.handleKill(res, dmgType);
     } else if (res.blocked) {
       // GDD §10.2 — a blocked swing costs more stamina than a normal one.
       this.stats.drainStamina(
@@ -891,6 +957,51 @@ export class Game {
       this.hud.toast(`${res.name} blocks your strike`);
     }
     this.wearTool(CONFIG.tools.meleeWearPerHit);
+  }
+
+  /** GDD §10.1/§10.2 — fire the equipped ranged weapon (crafted ammo, no infinite). */
+  private fireRanged(ranged: NonNullable<ItemDef["ranged"]>): void {
+    if (this.swingCooldown > 0) return;
+    if (this.inventory.count(ranged.ammoItemId) <= 0) {
+      this.swingCooldown = 0.3;
+      this.hud.toast(`Out of ${getItem(ranged.ammoItemId).name}s`);
+      return;
+    }
+    this.swingCooldown = 0.34;
+    this.inventory.remove(ranged.ammoItemId, 1);
+    this.controller.triggerSwing();
+    this.controller.addShake(0.045); // recoil kick
+    this.audio.zap();
+    const origin = this.controller.camera.position;
+    const dir = this.controller.forward();
+    const res = this.fauna.rayHit(origin, dir, ranged.range, ranged.damage, ranged.damageType);
+    if (res.hit && res.point) {
+      this.hud.hitMarker();
+      this.spawnImpact(res.point, 0x9ad8ff, res.killed ? 12 : 6);
+    } else {
+      // Bolt grounds out down-range — a faint crackle where it died.
+      const end = this.tmpSunDir.copy(dir).multiplyScalar(Math.min(ranged.range, 24)).add(origin);
+      this.spawnImpact(end, 0x4a78a8, 2);
+    }
+    if (res.killed) this.handleKill(res, ranged.damageType);
+    this.wearTool(CONFIG.tools.rangedWearPerShot); // GDD §10.3 barrel wear
+  }
+
+  /** Shared kill resolution: loot, toast, and adaptation tracking (GDD §9.4). */
+  private handleKill(res: MeleeResult, damageType: DamageType): void {
+    const gained: string[] = [];
+    for (const l of res.loot) {
+      const added = this.inventory.add(l.itemId, l.qty);
+      if (added > 0) gained.push(`${added} ${getItem(l.itemId).name}`);
+    }
+    this.hud.toast(`${res.name} slain${gained.length ? " — +" + gained.join(", ") : ""}`);
+    // GDD §9.4 — Vaelun studies your tactics: fire-killing Crawlers teaches them.
+    if (damageType === "fire" && res.creatureId === "C04") {
+      if (this.adaptation.recordCrawlerFireKill()) {
+        this.hud.toast("The Crawlers are adapting — fire bites shallower now.");
+        this.narrative.pushBeat("Crawler carapaces are changing. The flame lesson has been learned.");
+      }
+    }
   }
 
   /** Wear the equipped tool; unequip + toast if it breaks. */
@@ -959,6 +1070,14 @@ export class Game {
     if (loreCount) parts.push(`${loreCount} lore`);
     if (creatures) parts.push(`${creatures} fauna`);
     this.hud.toast(`Scan: ${parts.join(", ")} detected`);
+    // GDD §11.2 — scanner data saves to the Survey Log.
+    this.lastScan = {
+      clock: this.dayNight.clockString,
+      biome: BIOME_LABEL[biomeAt(pos.x, pos.z)],
+      deposits,
+      lore: loreCount,
+      fauna: creatures,
+    };
 
     if (this.inventory.damageDurability("scanner", CONFIG.scan.durabilityCost) === "broke") {
       this.controller.setEquippedTool(null);
@@ -1031,6 +1150,96 @@ export class Game {
     }
   }
 
+  /** GDD §10.1 — toss a flare (repels fauna) or a decoy canister (lures fauna). */
+  private deployGadget(kind: "flare" | "decoy"): void {
+    const g = CONFIG.gadgets;
+    const yaw = this.controller.forwardYaw;
+    const px = this.controller.position.x + -Math.sin(yaw) * g.throwDistance;
+    const pz = this.controller.position.z + -Math.cos(yaw) * g.throwDistance;
+    const py = this.world.groundHeight(px, pz);
+    const mesh = new THREE.Group();
+    let light: THREE.PointLight | null = null;
+    if (kind === "flare") {
+      const stick = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, 0.3, 6),
+        new THREE.MeshStandardMaterial({
+          color: 0x3a1a08,
+          emissive: 0xff4a2a,
+          emissiveIntensity: 2.4,
+        }),
+      );
+      stick.rotation.z = Math.PI / 2.4;
+      stick.position.y = 0.08;
+      mesh.add(stick);
+      light = new THREE.PointLight(0xff5a3a, 5, 22, 1.4);
+      light.position.y = 0.5;
+      mesh.add(light);
+      this.audio.flare();
+      this.hud.toast("Flare lit — native fauna won't approach the glare");
+    } else {
+      const can = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.14, 0.34, 8),
+        new THREE.MeshStandardMaterial({
+          color: 0x4a5158,
+          emissive: 0x3fe6c8,
+          emissiveIntensity: 0.9,
+          metalness: 0.5,
+          roughness: 0.4,
+        }),
+      );
+      can.position.y = 0.17;
+      mesh.add(can);
+      this.audio.scan();
+      this.hud.toast("Decoy hissing — they'll hunt the noise, not you");
+    }
+    mesh.position.set(px, py, pz);
+    this.world.scene.add(mesh);
+    this.deployables.push({
+      kind,
+      mesh,
+      light,
+      ttl: kind === "flare" ? g.flareTtlSec : g.decoyTtlSec,
+      pos: new THREE.Vector3(px, py, pz),
+    });
+  }
+
+  private updateDeployables(dt: number): void {
+    for (let i = this.deployables.length - 1; i >= 0; i--) {
+      const d = this.deployables[i];
+      d.ttl -= dt;
+      if (d.light) d.light.intensity = 4 + Math.random() * 2.5; // flare gutter/flicker
+      if (d.kind === "decoy") d.mesh.rotation.y += dt * 3;
+      if (d.ttl <= 0) {
+        this.spawnImpact(d.pos, d.kind === "flare" ? 0xff5a3a : 0x3fe6c8, 4);
+        this.world.scene.remove(d.mesh);
+        d.mesh.traverse((c) => {
+          const m = c as THREE.Mesh;
+          if (m.isMesh) {
+            m.geometry.dispose();
+            (m.material as THREE.Material).dispose();
+          }
+        });
+        this.deployables.splice(i, 1);
+      }
+    }
+  }
+
+  /** Nearest active gadget of a kind (for the fauna context), or null. */
+  private gadgetPos(kind: "flare" | "decoy"): THREE.Vector3 | null {
+    let best: THREE.Vector3 | null = null;
+    let bestD = Infinity;
+    const p = this.controller.position;
+    for (const d of this.deployables) {
+      if (d.kind !== kind) continue;
+      const dist = (d.pos.x - p.x) ** 2 + (d.pos.z - p.z) ** 2;
+      if (dist < bestD) {
+        bestD = dist;
+        best = d.pos;
+      }
+    }
+    return best;
+  }
+
   private clearMarkers(): void {
     for (const m of this.scanMarkers) {
       this.world.scene.remove(m.mesh);
@@ -1043,6 +1252,17 @@ export class Game {
       (p.mesh.material as THREE.Material).dispose();
     }
     this.impacts.length = 0;
+    for (const d of this.deployables) {
+      this.world.scene.remove(d.mesh);
+      d.mesh.traverse((c) => {
+        const m = c as THREE.Mesh;
+        if (m.isMesh) {
+          m.geometry.dispose();
+          (m.material as THREE.Material).dispose();
+        }
+      });
+    }
+    this.deployables.length = 0;
   }
 
   private hasFabricator(): boolean {
@@ -1166,6 +1386,8 @@ export class Game {
       lingerAmbush: this.spineLingerTimer > 120,
       apexAdapted: this.adaptation.apexAdapted,
       passive: this.settings.passive,
+      lure: this.gadgetPos("decoy"),
+      repel: this.gadgetPos("flare"),
       damagePlayer: (amount: number) => {
         this.stats.damage(
           amount *
@@ -1308,7 +1530,7 @@ export class Game {
       const added = this.inventory.add(l.itemId, l.qty);
       if (added > 0) gained.push(`${added} ${getItem(l.itemId).name}`);
     }
-    if (this.inventory.add(site.augmentItemId, 1) > 0) {
+    if (site.augmentItemId && this.inventory.add(site.augmentItemId, 1) > 0) {
       gained.push(getItem(site.augmentItemId).name);
     }
     this.crashSites.recover(site);
@@ -1479,6 +1701,79 @@ export class Game {
     this.hud.toast(`Cooked ${added} Spore-cap${added === 1 ? "" : "s"}`);
   }
 
+  /** Ion-surge lightning: random sky-flash + thunder while the storm rages. */
+  private updateLightning(dt: number): void {
+    if (this.weather.current !== WeatherType.IonSurge || this.weather.intensity < 0.4) {
+      this.lightningTimer = Math.min(this.lightningTimer, CONFIG.lightning.minGapSec);
+      return;
+    }
+    this.lightningTimer -= dt;
+    if (this.lightningTimer <= 0) {
+      this.lightningTimer =
+        CONFIG.lightning.minGapSec +
+        Math.random() * (CONFIG.lightning.maxGapSec - CONFIG.lightning.minGapSec);
+      this.hud.flashLightning();
+      this.audio.thunder();
+      this.controller.addShake(0.06);
+    }
+  }
+
+  /** GDD §6.1 — patch a weather-worn shell piece with maintenance materials. */
+  private repairStructure(module: PlacedModule): void {
+    if (module.integrity >= 100) {
+      this.hud.toast(`${module.def.name} is intact`);
+      return;
+    }
+    const cost = CONFIG.integrity.repairCost;
+    if (!this.inventory.has("ash_sediment", cost)) {
+      this.hud.toast(`Repair needs ${cost} Ash-sediment`);
+      return;
+    }
+    this.inventory.remove("ash_sediment", cost);
+    module.integrity = Math.min(100, module.integrity + CONFIG.integrity.repairAmount);
+    this.audio.craft();
+    this.hud.toast(`${module.def.name} repaired — ${Math.round(module.integrity)}%`);
+  }
+
+  /** GDD §4.3 — plant / tend / harvest the Hydroponic Planter. */
+  private farmPlanter(module: PlacedModule): void {
+    const grow = CONFIG.farm.growSeconds;
+    const g = module.growth ?? -1;
+    if (g < 0) {
+      if (!this.inventory.has("spore_cap", 1)) {
+        this.hud.toast("Planting needs a raw Spore-cap as seed stock");
+        return;
+      }
+      this.inventory.remove("spore_cap", 1);
+      module.growth = 0;
+      this.audio.gather();
+      this.hud.toast("Spore-cap planted — give it time and it grows clean");
+      return;
+    }
+    if (g < grow) {
+      this.hud.toast(`Crop growing — ${Math.round((g / grow) * 100)}%`);
+      return;
+    }
+    const added = this.inventory.add("cultivated_cap", CONFIG.farm.yield);
+    if (added <= 0) {
+      this.hud.toast("Inventory full — over carry weight");
+      return;
+    }
+    module.growth = -1;
+    this.audio.pickup();
+    this.hud.toast(`Harvested ${added} Cultivated Spore-cap${added === 1 ? "" : "s"} — safe to eat`);
+  }
+
+  /** Advance planter crops (called each simulating frame). */
+  private updatePlanters(dt: number): void {
+    for (const m of this.buildSystem.placed) {
+      if (m.type !== ModuleType.Planter || m.growth === undefined || m.growth < 0) continue;
+      if (m.growth < CONFIG.farm.growSeconds) {
+        m.growth = Math.min(CONFIG.farm.growSeconds, m.growth + dt);
+      }
+    }
+  }
+
   /** GDD §6.3 — top up a Generator with Bioluminite fuel. */
   private refuelGenerator(module: PlacedModule): void {
     const P = CONFIG.power;
@@ -1551,6 +1846,8 @@ export class Game {
       else if (kind === "condenser") this.drinkCondenser(t.module);
       else if (kind === "cook") this.cookFood();
       else if (kind === "refuel") this.refuelGenerator(t.module);
+      else if (kind === "farm") this.farmPlanter(t.module);
+      else this.repairStructure(t.module); // damaged shell piece (GDD §6.1)
       return;
     }
 
@@ -1624,11 +1921,11 @@ export class Game {
         if (use?.kind === "eat") {
           this.stats.eat(use.hunger);
           this.hud.toast(`Ate ${item.name} — hunger +${use.hunger}`);
-          // GDD §4.3: raw food can cause Gut-rot, negated by Iron Gut (A01).
+          // GDD §4.3: raw food risks a timed Gut-rot effect, negated by Iron Gut (A01).
           if (itemId === "spore_cap" && !this.augments.hasIronGut() && Math.random() < 0.3) {
-            this.stats.eat(-12);
-            this.stats.damage(4);
-            this.hud.toast("Gut-rot! The raw spore-cap turns your stomach");
+            this.effects.add("gut_rot", CONFIG.effects.gutRotDuration);
+            this.audio.hurt();
+            this.hud.toast("Gut-rot sets in — the raw spore-cap turns your stomach");
           }
         } else if (use?.kind === "drink") {
           this.stats.drink(use.hydration);
@@ -1639,6 +1936,8 @@ export class Game {
         } else if (use?.kind === "heal") {
           this.stats.heal(use.health);
           this.hud.toast(`Used ${item.name} — health +${use.health}`);
+        } else if (use?.kind === "flare" || use?.kind === "decoy") {
+          this.deployGadget(use.kind);
         }
         if (use?.kind === "eat" || use?.kind === "drink") this.tickOnboarding("sustain");
         this.inventory.remove(itemId, 1);
@@ -1718,6 +2017,7 @@ export class Game {
       tier3: this.tier3Unlocked,
       narrative: this.narrative.serialize(),
       adaptation: this.adaptation.serialize(),
+      effects: this.effects.serialize(),
       modules: this.buildSystem.serialize(),
       nodes: this.world.nodeStates(),
     });
@@ -1794,7 +2094,9 @@ export class Game {
       const item = getItem(this.equippedItemId);
       const stack = this.inventory.getStack(this.equippedItemId);
       if (item.maxDurability !== undefined && stack?.durability !== undefined) {
-        toolName = item.name;
+        toolName = item.ranged
+          ? `${item.name} · ${this.inventory.count(item.ranged.ammoItemId)} ⚡`
+          : item.name;
         toolDurability = stack.durability / item.maxDurability;
       }
     }
@@ -1841,6 +2143,10 @@ export class Game {
       onboarding: this.onboarding.active
         ? this.onboarding.steps.map((s) => ({ label: s.label, done: s.done }))
         : null,
+      effects: this.effects.active.map((e) => ({
+        name: e.def.name,
+        remaining: Math.ceil(e.remaining),
+      })),
       tracer: this.computeTracer(),
       prompt: t
         ? `<span class="key">[E]</span> ${t.verb} ${t.label}`

@@ -123,6 +123,23 @@ export class AudioSystem {
   ui(): void {
     this.tone(540, 0.05, "sine", 0.12);
   }
+  /** Arc Pistol discharge — a sharp descending zap. */
+  zap(): void {
+    this.tone(1800, 0.05, "sawtooth", 0.2);
+    this.tone(700, 0.08, "square", 0.16, 0.02);
+    this.noise(0.07, 0.2, 2400, 1.2);
+  }
+  /** Ion-surge lightning crack + low rumble. */
+  thunder(): void {
+    this.noise(0.08, 0.4, 3000, 0.8);
+    this.noise(1.1, 0.3, 140, 0.5);
+    this.tone(55, 0.9, "sine", 0.22, 0.05);
+  }
+  /** Flare ignition hiss. */
+  flare(): void {
+    this.noise(0.5, 0.22, 1800, 0.9);
+    this.tone(980, 0.12, "triangle", 0.12);
+  }
 
   // --- internals ------------------------------------------------------------
   private applyMix(): void {

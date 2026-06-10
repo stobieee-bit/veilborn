@@ -239,6 +239,7 @@ export class PlayerController {
     if (itemId === "stone_blade") this.toolMesh = makeStoneBladeViewmodel();
     else if (itemId === "spike_lance") this.toolMesh = makeSpikeLanceViewmodel();
     else if (itemId === "scanner") this.toolMesh = makeScannerViewmodel();
+    else if (itemId === "arc_pistol") this.toolMesh = makeArcPistolViewmodel();
     else if (itemId === "torch") {
       this.toolMesh = makeTorchViewmodel();
       this.torchLight = new THREE.PointLight(0xffa64d, 2.4, 16, 1.5); // GDD §10.1 light source
@@ -355,6 +356,37 @@ function makeSpikeLanceViewmodel(): THREE.Group {
   group.add(point);
   group.position.set(0.34, -0.32, -0.6);
   group.rotation.set(0.1, -0.3, 0);
+  return group;
+}
+
+function makeArcPistolViewmodel(): THREE.Group {
+  const group = new THREE.Group();
+  const grip = new THREE.Mesh(
+    new THREE.BoxGeometry(0.05, 0.12, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.7, metalness: 0.4 }),
+  );
+  grip.position.set(0, -0.05, 0.03);
+  group.add(grip);
+  const barrel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.05, 0.06, 0.26),
+    new THREE.MeshStandardMaterial({ color: 0x4a5158, roughness: 0.5, metalness: 0.6 }),
+  );
+  barrel.position.set(0, 0.03, -0.08);
+  group.add(barrel);
+  const coil = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.035, 0.1, 8),
+    new THREE.MeshStandardMaterial({
+      color: 0x102b3a,
+      emissive: 0x4aa8e0,
+      emissiveIntensity: 1.4,
+      roughness: 0.3,
+    }),
+  );
+  coil.rotation.x = Math.PI / 2;
+  coil.position.set(0, 0.03, -0.16);
+  group.add(coil);
+  group.position.set(0.3, -0.28, -0.55);
+  group.rotation.set(0.05, -0.15, 0);
   return group;
 }
 

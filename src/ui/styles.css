@@ -214,6 +214,26 @@ body {
     opacity: 0;
   }
 }
+.lightning-flash {
+  background: rgba(214, 230, 255, 0.85);
+}
+.lightning-flash.strike {
+  animation: boltFlash 0.45s ease-out;
+}
+@keyframes boltFlash {
+  0% {
+    opacity: 0.85;
+  }
+  12% {
+    opacity: 0.15;
+  }
+  22% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 
 /* --- Ending / credits slides (GDD §12.1, §17) --- */
 .ending-screen {
@@ -760,6 +780,44 @@ body {
 }
 .help-close:hover {
   filter: brightness(1.1);
+}
+
+/* --- Survey-Log Map tab --- */
+.sl-map-wrap {
+  text-align: center;
+}
+.sl-map {
+  display: block;
+  margin: 8px auto 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+
+/* --- Active status effects (GDD 4.2) --- */
+.effects {
+  position: absolute;
+  left: 22px;
+  bottom: 196px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.effects.show {
+  opacity: 1;
+}
+.fx-chip {
+  align-self: flex-start;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: #ff8a5a;
+  background: rgba(40, 12, 8, 0.72);
+  border: 1px solid #5a2a1a;
+  border-radius: 6px;
+  padding: 3px 9px;
 }
 
 /* --- First-run getting-started checklist --- */

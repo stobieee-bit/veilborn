@@ -40,6 +40,7 @@ export interface HudState {
   armorReduction: number; // GDD §7.1 worn-armor damage reduction (0 = none)
   power: { status: string; output: number; draw: number; batteryFrac: number } | null; // GDD §6.3 grid
   onboarding: { label: string; done: boolean }[] | null; // first-run getting-started steps
+  effects: { name: string; remaining: number }[]; // GDD §4.2 active status effects
   minimalHud: boolean; // GDD §13.2 conditional visibility (off = always show)
   tracer: { bearing: number; dist: number; label: string } | null;
   prompt: string | null;
@@ -63,6 +64,8 @@ export class HUD {
   private readonly powerEl: HTMLDivElement;
   private readonly onboardEl: HTMLDivElement;
   private onboardSig = "";
+  private readonly effectsEl: HTMLDivElement;
+  private effectsSig = "";
   private readonly promptEl: HTMLDivElement;
   private readonly toastsEl: HTMLDivElement;
   private readonly hotbarEl: HTMLDivElement;
@@ -78,6 +81,7 @@ export class HUD {
   private readonly veilOverlay: HTMLDivElement;
   private readonly coldOverlay: HTMLDivElement;
   private readonly damageFlash: HTMLDivElement;
+  private readonly lightningEl: HTMLDivElement;
   private readonly weatherEl: HTMLDivElement;
   private readonly biomeEl: HTMLDivElement;
   private readonly threatEl: HTMLDivElement;
@@ -111,7 +115,14 @@ export class HUD {
     this.coldOverlay = el("div", "fx cold-overlay");
     this.damageFlash = el("div", "fx damage-flash");
     this.hallucinateEl = el("div", "fx hallucinate");
-    root.append(this.veilOverlay, this.coldOverlay, this.damageFlash, this.hallucinateEl);
+    this.lightningEl = el("div", "fx lightning-flash");
+    root.append(
+      this.veilOverlay,
+      this.coldOverlay,
+      this.damageFlash,
+      this.hallucinateEl,
+      this.lightningEl,
+    );
 
     // Veil Episode overlay (GDD §4.1)
     this.episodeEl = el("div", "veil-episode hidden");
@@ -195,6 +206,10 @@ export class HUD {
     // First-run "Getting Started" checklist (right side, only during onboarding)
     this.onboardEl = el("div", "onboarding");
     root.appendChild(this.onboardEl);
+
+    // Active status effects (GDD §4.2) — chips above the stat cluster
+    this.effectsEl = el("div", "effects");
+    root.appendChild(this.effectsEl);
 
     this.saveIndicator = el("div", "save-indicator");
     this.saveIndicator.textContent = "✓ Saved";
@@ -313,6 +328,16 @@ export class HUD {
       this.armorEl.classList.remove("show");
     }
 
+    // Status-effect chips (rebuild only when the set/seconds change).
+    const fxSig = s.effects.map((e) => `${e.name}:${e.remaining}`).join("|");
+    if (fxSig !== this.effectsSig) {
+      this.effectsSig = fxSig;
+      this.effectsEl.innerHTML = s.effects
+        .map((e) => `<span class="fx-chip">☣ ${e.name} ${e.remaining}s</span>`)
+        .join("");
+    }
+    this.effectsEl.classList.toggle("show", s.effects.length > 0);
+
     if (s.onboarding && s.onboarding.length) {
       const sig = s.onboarding.map((o) => (o.done ? "1" : "0")).join("");
       if (sig !== this.onboardSig) {
@@ -352,6 +377,13 @@ export class HUD {
 
   setEpisodeText(text: string): void {
     this.episodeTextEl.textContent = text;
+  }
+
+  /** White sky-flash for an Ion-surge lightning strike. */
+  flashLightning(): void {
+    this.lightningEl.classList.remove("strike");
+    void this.lightningEl.offsetWidth;
+    this.lightningEl.classList.add("strike");
   }
 
   /** Flash the screen red when the player takes a hit. */

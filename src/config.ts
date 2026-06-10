@@ -229,7 +229,44 @@ export const CONFIG = {
   tools: {
     meleeWearPerHit: 1.5, // GDD §10.3
     gatherWearPerHit: 0.5, // GDD §10.3
+    rangedWearPerShot: 0.1, // GDD §10.3 barrel wear
     repairAmount: 50, // GDD §10.3 restore per repair action
+  },
+
+  // --- GDD §10.1 consumable tools (flare / decoy canister) ---
+  gadgets: {
+    flareTtlSec: 22, // burn time
+    flareRepelRadius: 16, // fauna inside this flee the light
+    decoyTtlSec: 18, // hiss-and-ping duration
+    decoyLureRadius: 45, // fauna inside this investigate the canister
+    throwDistance: 5, // deployed this far ahead of the player
+  },
+
+  // --- GDD §6.1/§6.4 structure integrity (weather degradation + maintenance) ---
+  integrity: {
+    stormDamagePerMin: 7, // Ashstorm wear on structural pieces (× intensity)
+    surgeDamagePerMin: 4, // Ion-surge arcing wears them a little too
+    repairAmount: 50, // restored per repair action (mirrors tool repair)
+    repairCost: 2, // Ash-sediment consumed per repair action
+  },
+
+  // --- GDD §4.3 cultivated crops (Hydroponic Planter) ---
+  farm: {
+    growSeconds: 150, // seed → harvest (≈ 0.6 of a compressed day)
+    yield: 3, // Cultivated Spore-caps per harvest
+  },
+
+  // --- GDD §4.2 timed status effects ---
+  effects: {
+    gutRotDuration: 14, // seconds of Gut-rot after risky raw food
+    gutRotTickDamage: 0.5, // health lost per second while it lasts
+    gutRotHungerMult: 2.2, // digestion burns hunger faster while sick
+  },
+
+  // --- Ion-surge lightning (visual/audio drama during the blackout) ---
+  lightning: {
+    minGapSec: 3,
+    maxGapSec: 9,
   },
 
   scan: {
@@ -261,5 +298,7 @@ export const CONFIG = {
     apexMeleeResist: 0.5,
     blockPeriodSec: 4,
     blockWindowSec: 1.2,
+    crawlerFireKillThreshold: 3, // GDD §9.4 — 3+ fire kills teach the Crawlers
+    crawlerFireResist: 0.4, // they then take only 40% fire damage (+60% resist)
   },
 } as const;

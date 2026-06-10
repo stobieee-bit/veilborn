@@ -243,6 +243,67 @@ export const RECIPES: Recipe[] = [
     qualityOutput: QualityEnum.Refined,
   },
 
+  // --- Consumable tools & ranged (GDD §10.1/§10.2) ---
+  {
+    id: "r_flare",
+    name: "Flare",
+    tier: 1,
+    outputItemId: "flare",
+    outputQuantity: 2,
+    ingredients: [
+      { itemId: "bioluminite", quantity: 1 },
+      { itemId: "veil_resin", quantity: 1 },
+      { itemId: "fiber_frond", quantity: 1 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Crude,
+  },
+  {
+    id: "r_decoy",
+    name: "Decoy Canister",
+    tier: 2,
+    outputItemId: "decoy_canister",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "ship_alloy_scrap", quantity: 1 },
+      { itemId: "spine_crystal_shard", quantity: 1 },
+      { itemId: "spore_cap", quantity: 1 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Standard,
+  },
+  {
+    id: "r_arc_pistol",
+    name: "Arc Pistol",
+    tier: 2,
+    outputItemId: "arc_pistol",
+    outputQuantity: 1,
+    ingredients: [
+      { itemId: "alloy_frame", quantity: 1 },
+      { itemId: "spine_crystal_shard", quantity: 3 },
+      { itemId: "energy_cell", quantity: 1 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Refined,
+  },
+  {
+    id: "r_arc_cell",
+    name: "Arc Cells",
+    tier: 2,
+    outputItemId: "arc_cell",
+    outputQuantity: 6,
+    ingredients: [
+      { itemId: "spine_crystal_shard", quantity: 1 },
+      { itemId: "bioluminite", quantity: 1 },
+    ],
+    station: CraftingStation.Fabricator,
+    craftTimeSec: 0,
+    qualityOutput: QualityEnum.Standard,
+  },
+
   // --- Armor (GDD §7.1 / §5.2). Some are also taught by lore fragments. ---
   {
     id: "r_hide_vest",

@@ -288,6 +288,63 @@ export const ITEMS: Record<string, ItemDef> = {
     use: { kind: "equip" },
     maxDurability: 70,
     toolDamage: 8,
+    damageType: "fire", // a burning brand — the fire path the Crawlers can learn (GDD §9.4)
+  },
+  arc_pistol: {
+    id: "arc_pistol",
+    name: "Arc Pistol",
+    description:
+      "A salvaged CALDERA sidearm rebuilt around a spine-crystal coil. Fires crafted Arc Cells. (GDD §10.1 ranged)",
+    weight: 1.4,
+    stackSize: 1,
+    category: ItemCategory.Tool,
+    quality: QualityEnum.Refined,
+    use: { kind: "equip" },
+    maxDurability: 90,
+    ranged: { damage: 30, ammoItemId: "arc_cell", range: 38, damageType: "energy" },
+  },
+  arc_cell: {
+    id: "arc_cell",
+    name: "Arc Cell",
+    description: "A charged crystal slug for the Arc Pistol. No infinite ammo on Vaelun. (GDD §10.2)",
+    weight: 0.05,
+    stackSize: 30,
+    category: ItemCategory.Material,
+    materialCategory: MaterialCategory.Synthetic,
+    quality: QualityEnum.Standard,
+  },
+  flare: {
+    id: "flare",
+    name: "Flare",
+    description:
+      "A bioluminite flash-stick. Toss it down: harsh light that native fauna refuse to approach. (GDD §10.1)",
+    weight: 0.3,
+    stackSize: 10,
+    category: ItemCategory.Consumable,
+    quality: QualityEnum.Crude,
+    use: { kind: "flare" },
+  },
+  decoy_canister: {
+    id: "decoy_canister",
+    name: "Decoy Canister",
+    description:
+      "Hisses, pings, and stinks of prey. Fauna investigate it instead of you. (GDD §10.1)",
+    weight: 0.5,
+    stackSize: 6,
+    category: ItemCategory.Consumable,
+    quality: QualityEnum.Standard,
+    use: { kind: "decoy" },
+  },
+  cultivated_cap: {
+    id: "cultivated_cap",
+    name: "Cultivated Spore-cap",
+    description: "Planter-grown and guaranteed safe — no Gut-rot, ever. (GDD §4.3 cultivated)",
+    weight: 0.2,
+    stackSize: 20,
+    category: ItemCategory.Consumable,
+    materialCategory: MaterialCategory.Organic,
+    quality: QualityEnum.Standard,
+    use: { kind: "eat", hunger: 40 },
   },
 
   // --- Armor (worn equipment; auto-equips the best per slot — GDD §7.1) ---

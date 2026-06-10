@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { CONFIG } from "../config";
 import { Biome, biomeAt } from "../core/biomes";
+import type { DamageType } from "../core/types";
 import {
   BELLOWER,
   CRADLE_SPAWN,
@@ -26,6 +27,7 @@ export interface MeleeResult {
   name: string;
   loot: { itemId: string; qty: number }[];
   point?: THREE.Vector3; // world-space hit location (for impact FX)
+  creatureId?: string; // def id of the creature struck (adaptation tracking)
 }
 
 const NONE: MeleeResult = { hit: false, killed: false, blocked: false, name: "", loot: [] };
@@ -40,6 +42,8 @@ export class FaunaSystem {
   onBellow: () => void = () => {};
   /** GDD §9.4 — set by Game; apex melee resistance/blocking when adapted. */
   adaptedApex = false;
+  /** GDD §9.4 — set by Game; Crawlers resist fire once they've learned it. */
+  crawlerFireResist = false;
   /** GDD §9.1 — set by Game once enough apex have been defeated; stops respawns. */
   apexExhausted = false;
   onApexMeleeHit: (killed: boolean) => void = () => {};
@@ -120,6 +124,7 @@ export class FaunaSystem {
     arcDot: number,
     damage: number,
     knockback: number,
+    damageType: DamageType = "physical",
   ): MeleeResult {
     let best: Creature | null = null;
     let bestDist = Infinity;
@@ -139,8 +144,10 @@ export class FaunaSystem {
     if (!best) return NONE;
 
     // GDD §9.4 — adapted apex resists melee and blocks it outright at times.
-    let dmg = damage;
-    if (best.def.isApex && this.adaptedApex) dmg *= CONFIG.adaptation.apexMeleeResist;
+    let dmg = this.adaptedDamage(best, damage, damageType);
+    if (best.def.isApex && this.adaptedApex && damageType === "physical") {
+      dmg *= CONFIG.adaptation.apexMeleeResist;
+    }
     const blocked = best.blocking;
     if (blocked) dmg = 0;
 
@@ -152,9 +159,59 @@ export class FaunaSystem {
       const loot = best.rollLoot();
       this.world.scene.remove(best.mesh);
       this.creatures.splice(this.creatures.indexOf(best), 1);
-      return { hit: true, killed: true, blocked, name: best.def.name, loot, point };
+      return { hit: true, killed: true, blocked, name: best.def.name, loot, point, creatureId: best.def.id };
     }
-    return { hit: true, killed: false, blocked, name: best.def.name, loot: [], point };
+    return { hit: true, killed: false, blocked, name: best.def.name, loot: [], point, creatureId: best.def.id };
+  }
+
+  /**
+   * GDD §10.1/§10.2 ranged shot — a ray-vs-bounding-sphere test against every
+   * targetable creature; hits the nearest along the ray within range.
+   */
+  rayHit(
+    origin: THREE.Vector3,
+    dir: THREE.Vector3,
+    range: number,
+    damage: number,
+    damageType: DamageType,
+  ): MeleeResult {
+    let best: Creature | null = null;
+    let bestT = Infinity;
+    const oc = new THREE.Vector3();
+    for (const c of this.creatures) {
+      if (!c.alive || c.phasedOut) continue;
+      oc.set(c.pos.x, c.pos.y + 0.6, c.pos.z).sub(origin);
+      const t = oc.dot(dir); // distance along the ray to the closest approach
+      if (t < 0 || t > range) continue;
+      const closest2 = oc.lengthSq() - t * t;
+      if (closest2 > 0.85 * 0.85) continue; // bounding-sphere radius
+      if (t < bestT) {
+        bestT = t;
+        best = c;
+      }
+    }
+    if (!best) return NONE;
+
+    const dmg = this.adaptedDamage(best, damage, damageType);
+    const knock = new THREE.Vector3(best.pos.x - origin.x, 0, best.pos.z - origin.z).normalize();
+    best.takeDamage(dmg, knock, 0.6);
+    if (best.def.isApex) this.onApexMeleeHit(!best.alive);
+    const point = new THREE.Vector3(best.pos.x, best.pos.y + 0.6, best.pos.z);
+    if (!best.alive) {
+      const loot = best.rollLoot();
+      this.world.scene.remove(best.mesh);
+      this.creatures.splice(this.creatures.indexOf(best), 1);
+      return { hit: true, killed: true, blocked: false, name: best.def.name, loot, point, creatureId: best.def.id };
+    }
+    return { hit: true, killed: false, blocked: false, name: best.def.name, loot: [], point, creatureId: best.def.id };
+  }
+
+  /** GDD §9.4 — Crawlers that learned fire shrug most of it off. */
+  private adaptedDamage(c: Creature, damage: number, type: DamageType): number {
+    if (type === "fire" && c.def.id === "C04" && this.crawlerFireResist) {
+      return damage * CONFIG.adaptation.crawlerFireResist;
+    }
+    return damage;
   }
 
   private spawnPack(

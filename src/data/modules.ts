@@ -369,6 +369,31 @@ function generatorMesh(): THREE.Object3D {
   return g;
 }
 
+function planterMesh(): THREE.Object3D {
+  const g = new THREE.Group();
+  const trough = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 0.7), alloy(0x4a443a, 0.8, 0.2));
+  trough.position.y = 0.2;
+  g.add(trough);
+  const soil = new THREE.Mesh(
+    new THREE.BoxGeometry(1.28, 0.08, 0.58),
+    new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 1 }),
+  );
+  soil.position.y = 0.42;
+  g.add(soil);
+  const sprout = new THREE.Mesh(
+    new THREE.ConeGeometry(0.1, 0.3, 5),
+    new THREE.MeshStandardMaterial({
+      color: 0x1e3a22,
+      emissive: 0x4fe07a,
+      emissiveIntensity: 0.5,
+      flatShading: true,
+    }),
+  );
+  sprout.position.y = 0.58;
+  g.add(sprout);
+  return g;
+}
+
 export const MODULES: ModuleDef[] = [
   {
     type: ModuleType.Foundation,
@@ -536,6 +561,19 @@ export const MODULES: ModuleDef[] = [
       { itemId: "fiber_frond", quantity: 2 },
     ],
     create: generatorMesh,
+  },
+  {
+    type: ModuleType.Planter,
+    name: "Hydroponic Planter",
+    snap: "prop",
+    collision: "cylinder",
+    interact: "farm",
+    cost: [
+      { itemId: "ash_sediment", quantity: 4 },
+      { itemId: "fiber_frond", quantity: 3 },
+      { itemId: "veil_resin", quantity: 1 },
+    ],
+    create: planterMesh,
   },
 ];
 

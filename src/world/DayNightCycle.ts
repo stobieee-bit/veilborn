@@ -102,8 +102,9 @@ export class DayNightCycle {
       1 - daylight,
     );
 
-    // --- Veil-matter glow + flow animation ---
+    // --- Veil-matter glow + flow animation + night motes ---
     this.world.setVeilGlow(clamp01(1 - daylight * 1.35));
     this.world.advanceVeilTime(dt);
+    this.world.updateMotes(dt, cameraPos);
   }
 }

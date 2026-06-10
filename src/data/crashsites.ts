@@ -1,11 +1,11 @@
-/** A colony-ship crash site POI (GDD §11.1, §17 Phase 6). */
+/** A colony-ship crash site / outpost POI (GDD §11.1, §17 Phase 6). */
 export interface CrashSite {
   id: string;
   name: string;
   x: number;
   z: number;
   loot: { itemId: string; qty: number }[];
-  augmentItemId: string; // colony-ship-loot augment recovered here
+  augmentItemId?: string; // colony-ship-loot augment recovered here (crash sites only)
 }
 
 /**
@@ -48,5 +48,29 @@ export const CRASH_SITES: CrashSite[] = [
       { itemId: "ration_pack", qty: 2 },
     ],
     augmentItemId: "aug_thermal_skin", // A03 (Warrens in GDD; placed here for Phase 6)
+  },
+
+  // --- Colony outposts (GDD §11.1 "old colony outposts") — supply caches, no augment ---
+  {
+    id: "OP1",
+    name: "Survey Outpost K-4",
+    x: -120,
+    z: -340,
+    loot: [
+      { itemId: "ration_pack", qty: 3 },
+      { itemId: "arc_cell", qty: 6 },
+      { itemId: "ash_sediment", qty: 4 },
+    ],
+  },
+  {
+    id: "OP2",
+    name: "Relay Outpost K-9",
+    x: 380,
+    z: 290,
+    loot: [
+      { itemId: "ration_pack", qty: 2 },
+      { itemId: "flare", qty: 3 },
+      { itemId: "ship_alloy_scrap", qty: 3 },
+    ],
   },
 ];
